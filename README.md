@@ -1,2 +1,1 @@
-topic_modeling
-==============
+CRIS lab topic modeling project
