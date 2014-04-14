@@ -1,21 +1,61 @@
 module MutableStringUtils
 
 using MutableStrings
-import MutableStrings.setindex!,
+import Base.deleteat!,
+       Base.split,
        MutableStrings.lowercase!
 
-export setindex!,
-       lowercase!
+export deleteat!,
+       lowercase!,
+       split,
+       strip!
 
-function setindex!(s::SubString{MutableASCIIString}, x, i0::Real)
-    setindex!(s.string, x, s.offset + i0)
+function deleteat!(s::MutableASCIIString, idx::Int)
+    deleteat!(s.data, idx)
 end
 
-function lowercase!(s::SubString{MutableASCIIString})
-    d = s.string.data
-    for i = s.offset:s.offset+s.endof
-        if 'A' <= d[i] <= 'Z'
-            d[i] += 32
+function lowercase!(s::MutableASCIIString, idx::Int)
+    d = s.data
+    if 'A' <= d[idx] <= 'Z'
+        d[idx] += 32
+    end
+end
+
+const _default_delims = [' ','\t','\n','\v','\f','\r']
+function split(s::MutableASCIIString, splitter=_default_delims)
+    result = MutableASCIIString[]
+    i = start(s)
+    n = endof(s)
+    r = search(s, splitter, i)
+    j, k = first(r), nextind(s, last(r))
+    while 0 < j <= n
+        if i < k
+            if i < j
+                push!(result, MutableASCIIString(s[i:prevind(s,j)]))
+            end
+            i = k
+        end
+        if k <= j; k = nextind(s,j) end
+        r = search(s, splitter, k)
+        j, k = first(r), nextind(s, last(r))
+    end
+    if !done(s, i)
+        push!(result, s[i:end])
+    end
+end
+
+function strip!(s::MutableASCIIString, chars::Set{Char})
+    d = s.data
+    for i = 1:length(d)
+        if !(char(d[i]) in chars)
+            deleteat!(d, 1:i-1)
+            break
+        end
+    end
+    for i = length(d):-1:1
+        if !(char(d[i]) in chars)
+            deleteat!(d, i+1:length(d))
+            break
         end
     end
 end

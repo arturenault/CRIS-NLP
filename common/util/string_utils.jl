@@ -6,8 +6,6 @@ export asciify,
        is_lower_or_dash,
        is_upper_or_dash
 
-typealias ASCII Union(ASCIIString, SubString{ASCIIString})
-
 function asciify(str::UTF8String)
     try
         ascii(str)
@@ -16,21 +14,21 @@ function asciify(str::UTF8String)
     end
 end
 
-function has_lower(str::ASCII)
+function has_lower(str::String)
     for c in str
         if (islower(c)) return true end
     end
     return false
 end
 
-function has_upper(str::ASCII)
+function has_upper(str::String)
     for c in str
         if (isupper(c)) return true end
     end
     return false
 end
 
-function is_lower_or_dash(str::ASCII)
+function is_lower_or_dash(str::String)
     for c in str
         if (!islower(c) && c != '-') return false end
     end
@@ -38,7 +36,7 @@ function is_lower_or_dash(str::ASCII)
     return true
 end
 
-function is_upper_or_dash(str::ASCII)
+function is_upper_or_dash(str::String)
     for c in str
         if (!isupper(c) && c != '-') return false end
     end
