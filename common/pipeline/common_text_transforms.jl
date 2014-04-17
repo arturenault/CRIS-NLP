@@ -21,9 +21,11 @@ export ClauseHandlerState,
        strip_quotes,
        lowercase_title,
        lowercase_abstract,
-       apply_hyphenation_rules,
-       apply_suffix_mappings,
-       apply_word_substitutions
+       filter_stopwords,
+       space_out_slashes,
+       hyphenation_rules,
+       map_suffixes,
+       substitute_words
 
 type ClauseHandlerState <: DataTransformState
     in_parenthetical::Bool
@@ -52,7 +54,10 @@ function handle_clauses_in_title(input::TextAndPos,
         deleteat!(input.text, idx)
     end
 
+    if '|' in input.text; return; end
+
     n_lower, n_upper, n_lparen, n_rparen, n_other = count_char_types(input.text)
+    if (n_lower + n_upper == 0); return; end
 
     if !state.in_parenthetical && n_lparen > n_rparen && input.text[1] == '('
         state.in_parenthetical = true
@@ -97,13 +102,17 @@ function handle_clauses_in_abstract(input::TextAndPos,
         idx = length(input.text)
         punc = input.text[idx]
         deleteat!(input.text, idx)
-    elseif input.text[end] == '.' && length(input.text) > 2 && islower(input.text[1:end-1])
+    elseif input.text[end] == '.' && length(input.text) > 2 && search(input.text[1:end-1], '.') == 0
         deleteat!(input.text, length(input.text))
         offer(output, input)
         state.cur_sentence_idx += 1
+        return
     end
 
+    if '|' in input.text; return; end
+
     n_lower, n_upper, n_lparen, n_rparen, n_other = count_char_types(input.text)
+    if (n_lower + n_upper == 0); return; end
 
     if !state.in_parenthetical && n_lparen > n_rparen && input.text[1] == '('
         state.in_parenthetical = true
@@ -172,11 +181,30 @@ function lowercase_abstract(input::TextAndPos,
     offer(output, input)
 end
 
-function apply_hyphenation_rules(input::TextAndPos,
-                                 output::DataProcessor{TextAndPos},
-                                 split_unigrams::Set{ASCIIString},
-                                 collapsed_prefixes::Set{ASCIIString},
-                                 split_suffixes::Set{ASCIIString})
+function filter_stopwords(input::TextAndPos,
+                          output::DataProcessor{TextAndPos},
+                          stopwords::Set{ASCIIString})
+    if !(input.text in stopwords)
+        offer(output, input)
+    end
+end
+
+function space_out_slashes(input::TextAndPos,
+                           output::DataProcessor{TextAndPos})
+    if search(input.text, '/') > 0
+        for elem in split(input.text, '/')
+            offer(output, TextAndPos(elem, input.pos, input.sentence_idx))
+        end
+    else
+        offer(output, input)
+    end
+end
+
+function hyphenation_rules(input::TextAndPos,
+                           output::DataProcessor{TextAndPos},
+                           split_unigrams::Set{ASCIIString},
+                           collapsed_prefixes::Set{ASCIIString},
+                           split_suffixes::Set{ASCIIString})
     dash_idx = search(input.text, '-')
     if dash_idx > 0
         s1 = input.text[1:dash_idx-1]
@@ -211,9 +239,9 @@ function apply_hyphenation_rules(input::TextAndPos,
     offer(output, input)
 end
 
-function apply_suffix_mappings(input::TextAndPos,
-                               output::DataProcessor{TextAndPos},
-                               suffix_mappings::Dict{ASCIIString, ASCIIString})
+function map_suffixes(input::TextAndPos,
+                      output::DataProcessor{TextAndPos},
+                      suffix_mappings::Dict{ASCIIString, ASCIIString})
     txt_len = length(input.text)
     for (suffix, replacement) in suffix_mappings
         suf_len = length(suffix)
@@ -233,22 +261,11 @@ function apply_suffix_mappings(input::TextAndPos,
     offer(output, input)
 end
 
-function apply_word_substitutions(input::TextAndPos,
-                                  output::DataProcessor{TextAndPos},
-                                  word_substitutions::Dict{ASCIIString, ASCIIString})
+function substitute_words(input::TextAndPos,
+                          output::DataProcessor{TextAndPos},
+                          word_substitutions::Dict{ASCIIString, ASCIIString})
     if haskey(word_substitutions, input.text)
-        sub = word_substitutions[input.text]
-        sub_len = length(sub)
-        txt_len = length(input.text)
-        if sub_len == txt_len
-            input.text[1:end] = sub
-        elseif sub_len > txt_len
-            input.text[1:end] = sub[1:txt_len]
-            append!(input.text.data, convert(Vector{Uint8}, sub[txt_len+1:end]))
-        elseif sub_len < txt_len
-            deleteat!(input.text.data, sub_len+1:txt_len)
-            input.text[1:end] = sub
-        end
+        substitute!(input.text, word_substitutions[input.text])
     end
     offer(output, input)
 end

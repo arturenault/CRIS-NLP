@@ -2,7 +2,8 @@ module DataPipelines
 
 using DataStructures
 
-import Base.copy
+import Base.copy,
+       Base.shift!
 export DataProcessor,
        DataTransform,
        DataTransformState,
@@ -15,8 +16,6 @@ export DataProcessor,
        DataPipeline,
        BooleanState,
        IntegerState,
-       SlidingPairs,
-       SlidingTriples,
        copy,
        offer,
        flush,
@@ -115,32 +114,6 @@ end
 
 function flush(state::IntegerState, output::DataProcessor)
     state.value = -1
-end
-
-type SlidingPairs{T} <: DataTransformState
-    last::Union(T, Nothing)
-end
-
-function SlidingPairs(dtype::DataType)
-    SlidingPairs{dtype}(nothing)
-end
-
-function flush(state::SlidingPairs, output::DataProcessor)
-    state.last = nothing
-end
-
-type SlidingTriples{T} <: DataTransform
-    two_ago::Union(T, Nothing)
-    one_ago::Union(T, Nothing)
-end
-
-function SlidingTriples(dtype::DataType)
-    SlidingTriples{dtype}(nothing, nothing)
-end
-
-function flush(state::SlidingTriples, output::DataProcessor)
-    state.two_ago = nothing
-    state.one_ago = nothing
 end
 
 #-------------------------------------------------------------------------------

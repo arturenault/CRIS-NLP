@@ -8,7 +8,8 @@ import Base.deleteat!,
 export deleteat!,
        lowercase!,
        split,
-       strip!
+       strip!,
+       substitute!
 
 function deleteat!(s::MutableASCIIString, idx::Int)
     deleteat!(s.data, idx)
@@ -42,6 +43,7 @@ function split(s::MutableASCIIString, splitter=_default_delims)
     if !done(s, i)
         push!(result, s[i:end])
     end
+    result
 end
 
 function strip!(s::MutableASCIIString, chars::Set{Char})
@@ -57,6 +59,20 @@ function strip!(s::MutableASCIIString, chars::Set{Char})
             deleteat!(d, i+1:length(d))
             break
         end
+    end
+end
+
+function substitute!(str::MutableASCIIString, sub::String)
+    str_len = length(str)
+    sub_len = length(sub)
+    if sub_len == str_len
+        str[1:end] = sub
+    elseif sub_len > str_len
+        str[1:end] = sub[1:str_len]
+        append!(str.data, convert(Vector{Uint8}, sub[str_len+1:end]))
+    elseif sub_len < str_len
+        deleteat!(str.data, sub_len+1:str_len)
+        str[1:end] = sub
     end
 end
 
