@@ -30,6 +30,10 @@ type TextAndPos
     sentence_idx::Int # 0 for title; 1,2,... for sentence #s in main text
 end
 
+# having a "null object" allows any TextAndPos field to be reset
+# as just a pointer to this object, instead of creating a new dummy
+# TextAndPos each time. this gets the effect of a type
+# Union(TextAndPos, nothing) without the overhead involved with that.
 const NullTextAndPos = TextAndPos(MutableASCIIString(""), 0:0, -1)
 
 function TextAndPos(text::ASCIIString, pos::IntRange, sentence_idx::Int)

@@ -78,49 +78,39 @@ function build_abstract_pipeline()
     pipeline
 end
 
-function write_words_and_pos(output, debug_output, doc_id, data)
+function write_words_and_pos(output, data_slice)
+    write(output, join(map(elem -> elem.text, data_slice), ' '))
+    write(output, '\t')
+    write(output, join(map(elem -> begin
+        if length(elem.pos) == 1
+            string(elem.pos[1])
+        else
+            repr(elem.pos)
+        end
+    end, data_slice), ' '))
+    write(output, '\n')
+end
+
+function write_words_and_pos(output, doc_id, data)
     if length(data) == 0; return; end
 
-    cur_sentence = -1
-    first_in_sentence = true
+    cur_sentence = data[1].sentence_idx
+    write(output, doc_id)
+    write(output, "\t$cur_sentence\t")
 
-    for elem in data
-        if elem.sentence_idx != cur_sentence
-            if cur_sentence >= 0
-                write(output, '\n')
-                write(debug_output, '\n')
-            end
-            
-            cur_sentence = elem.sentence_idx
-            first_in_sentence = true
-            
+    start_idx = 1
+    for i in 1:length(data)
+        if data[i].sentence_idx != cur_sentence
+            write_words_and_pos(output, data[start_idx:i-1])
+
+            cur_sentence = data[i].sentence_idx
+            start_idx = i
             write(output, doc_id)
             write(output, "\t$cur_sentence\t")
-            
-            write(debug_output, doc_id)
-            write(debug_output, "\t$cur_sentence\t")
         end
-
-        if first_in_sentence
-            first_in_sentence = false
-        else
-            write(output, '|')
-            write(debug_output, ' ')
-        end
-
-        write(output, elem.text)
-        write(output, '|')
-        if length(elem.pos) == 1
-            write(output, string(elem.pos[1]))
-        else
-            write(output, repr(elem.pos))
-        end
-
-        write(debug_output, elem.text)
     end
 
-    write(output, '\n')
-    write(debug_output, '\n')
+    write_words_and_pos(output, data[start_idx:end])
 end
 
 function main()
@@ -128,7 +118,6 @@ function main()
     abstract_pipeline = build_abstract_pipeline()
 
     output = open("output/thin_film_preprocessed.txt", "w")
-    debug_output = open("output/thin_film_preprocessed_debug.txt", "w")
     acronyms = open("output/thin_film_acronyms.txt", "w")
 
     count = 0
@@ -136,11 +125,11 @@ function main()
     for doc_id in docs
         process!(title_pipeline, titles[doc_id], base_sentence_idx=0)
         title_result = result!(title_pipeline)
-        write_words_and_pos(output, debug_output, doc_id, title_result)
+        write_words_and_pos(output, doc_id, title_result)
 
         process!(abstract_pipeline, abstracts[doc_id], base_sentence_idx=1)
         abstract_result = result!(abstract_pipeline)
-        write_words_and_pos(output, debug_output, doc_id, abstract_result)
+        write_words_and_pos(output, doc_id, abstract_result)
 
         count += 1
         if count % 1000 == 0
@@ -153,7 +142,6 @@ function main()
     end
 
     close(output)
-    close(debug_output)
     close(acronyms)
 end
 

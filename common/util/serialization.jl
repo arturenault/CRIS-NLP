@@ -20,6 +20,10 @@ function store(path::ASCIIString, data::Dict{ASCIIString, ASCIIString})
     end
 end
 
+function store{T <: Number}(path::ASCIIString, data::Accumulator{ASCIIString, T})
+    store(path, data.map)
+end
+
 function store{T <: Number}(path::ASCIIString, data::Dict{ASCIIString, T})
     open(path, "w") do f
         for (k, v) in sort!(collect(data), by=(t->t[2]), rev=true)

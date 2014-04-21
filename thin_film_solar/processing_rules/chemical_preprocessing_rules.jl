@@ -322,7 +322,7 @@ const bigram_chems = (ASCIIString => ASCIIString)[
 const allotropes = (ASCIIString => ASCIIString)[
 "amorphous" => "a",
 "crystalline" => "c",
-"microcrystalline" => "mu c",
+"microcrystalline" => "muc",
 "nanocrystalline" => "nc",
 "monocrystalline" => "mono",
 "polycrystalline" => "poly",
@@ -332,6 +332,7 @@ const allotropes = (ASCIIString => ASCIIString)[
 const allotropes_inv = (ASCIIString => ASCIIString)[
 "a" => "amorphous",
 "c" => "crystalline",
+"muc" => "microcrystalline",
 "mono" => "monocrystalline",
 "poly" => "polycrystalline",
 "nc" => "nanocrystalline",

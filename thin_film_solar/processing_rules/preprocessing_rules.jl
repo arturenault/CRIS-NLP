@@ -395,7 +395,6 @@ const suffix_mappings = (ASCIIString => ASCIIString)[
     "orated" => "oration",
     "rized" => "rization",
     "inized" => "inization",
-    "ally" => "al",
 ]
 
 const word_substitutions = (ASCIIString => ASCIIString)[

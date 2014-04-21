@@ -29,16 +29,18 @@ export ClauseHandlerState,
 
 type ClauseHandlerState <: DataTransformState
     in_parenthetical::Bool
+    last_word_ends_with_period::Bool
     cur_sentence_idx::Int
     possible_acronym_log::Accumulator{ASCIIString, Int}
 end
 
 function ClauseHandlerState(possible_acronym_log)
-    ClauseHandlerState(false, -1, possible_acronym_log)
+    ClauseHandlerState(false, false, -1, possible_acronym_log)
 end
 
 function flush(state::ClauseHandlerState, output::DataProcessor)
     state.in_parenthetical = false
+    state.last_word_ends_with_period = false
     state.cur_sentence_idx = -1
     # acronym log is persistent across documents
 end
@@ -86,6 +88,53 @@ function handle_clauses_in_title(input::TextAndPos,
     end
 end
 
+# NOTE: this will treat initials like "D. E. Shaw" as sentence break
+#       this is a price paid to catch things like "degrees C."
+#       at the end of a sentence. if your text has names with initials,
+#       you should edit this function
+#       (or preferably, make it configurable...too lazy to do that now).
+#
+#
+# returns 0 if not a sentence break
+#         1 if it is a sentence break
+#         2 if last word was a sentence break and we're just realizing it now
+#
+function is_sentence_break(word::MutableASCIIString, last_word_ends_with_period::Bool)
+    if word[end] != '.'
+        # for cases when we missed a true sentence break in the last word,
+        # so we didn't properly space out the period,
+        # but we can see from capitalization that we've reached a new sentence
+        if (last_word_ends_with_period
+            && isupper(word[1])
+            && length(word) > 1
+            && count(c -> isupper(c), word) == 1)
+            return 2
+        else
+            return 0
+        end
+    end
+    
+    len = length(word)
+    if len == 1 || (len == 2 && isupper(word[1]))
+        return 1
+    end
+
+    has_dot = false
+    n_alpha = 0
+    for c in word[1:end-1]
+        if c == '.'
+            has_dot = true
+        elseif isalpha(c)
+            n_alpha += 1
+        end
+    end
+    if has_dot && n_alpha > 0
+        return 0
+    else
+        return 1
+    end
+end
+
 function handle_clauses_in_abstract(input::TextAndPos,
                                     state::ClauseHandlerState,
                                     output::DataProcessor{TextAndPos})
@@ -102,14 +151,22 @@ function handle_clauses_in_abstract(input::TextAndPos,
         idx = length(input.text)
         punc = input.text[idx]
         deleteat!(input.text, idx)
-    elseif input.text[end] == '.' && length(input.text) > 2 && search(input.text[1:end-1], '.') == 0
+    end
+
+    if length(input.text) == 0; return; end
+
+    sentence_break = is_sentence_break(input.text, state.last_word_ends_with_period)
+    if sentence_break == 1
         deleteat!(input.text, length(input.text))
         offer(output, input)
         state.cur_sentence_idx += 1
         return
+    elseif sentence_break == 2
+        state.cur_sentence_idx += 1
+        input.sentence_idx += 1
+        offer(output, input)
+        return
     end
-
-    if '|' in input.text; return; end
 
     n_lower, n_upper, n_lparen, n_rparen, n_other = count_char_types(input.text)
     if (n_lower + n_upper == 0); return; end
@@ -139,6 +196,8 @@ function handle_clauses_in_abstract(input::TextAndPos,
     if punc != '\0'
         offer(output, TextAndPos(string(punc), input.pos, input.sentence_idx))
     end
+
+    state.last_word_ends_with_period = input.text[end] == '.'
 end
 
 const quotes = Set(['\'', '"'])

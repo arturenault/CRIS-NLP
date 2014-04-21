@@ -40,13 +40,14 @@ abstract DataTransformState
 # Stateless Data Types
 #-------------------------------------------------------------------------------
 
-# 1-1 or 1-many transforms
+# 1-1 or 1-many transform
 type Mapper{T} <: DataTransform{T}
     process::Function
     output::DataProcessor{T}
 end
 
-# many-1 or many-many transforms
+# note: this is for joins
+# for sliding windows on the same input use a StatefulMapper
 type BatchMapper{T} <: DataTransform{T}
     queue::Deque{T}
     batch_size::Int
@@ -67,7 +68,6 @@ end
 
 typealias BinaryReducer{T, V} StatefulMapper{T, V}
 
-# rolling many-1/many-many transforms
 type StatefulBatchMapper{T, V <: DataTransformState} <: DataTransform{T}
     state::V
     queue::Deque{T}
@@ -89,7 +89,7 @@ type DataPipeline{T} <: DataProcessor{T}
 end
 
 #-------------------------------------------------------------------------------
-# States for Stateful Data Types
+# States for Stateful Data Types (external modules can also define their own)
 #-------------------------------------------------------------------------------
 
 type BooleanState <: DataTransformState
