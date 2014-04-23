@@ -1,36 +1,22 @@
 module TermExtraction
 
-require("string_utils.jl")
-require("term_extraction_rules.jl")
-
-using DataStructures
-using TermExtractionRules
-using StringUtils
-
 export extract_terms
 
-type Word
-    text::SubString{ASCIIString}
-    pos::Range1{Int}
-end
+# note: this module must be implemented and put into the classpath by the user
+#       see documentation for required exports
+require("term_extraction_rules.jl")
+using TermExtractionRules
 
-type Term
-    term::ASCIIString
-    # indexes of term start/end in Sentence word vector
-    idx_range::Range1{Int}
-    # indexes of term start/end in the original text's word vector
-    source_range::Range1{Int}
-end
-
-type Sentence
-    doc_id::ASCIIString
-    idx::Int
-    words::Vector{Word}
-    terms::Vector{Term}
-end
+using DataStructures
+require("string_utils.jl")
+using StringUtils
+require("term_extraction_types.jl")
+using TermExtractionTypes
+require("term_extraction_helpers.jl")
+using TermExtractionHelpers
 
 const null_word = Word(SubString("", 1, 1), 0:0)
-const common_words_25k = Set{ASCIIString}(
+const common_words_25k = StringSet(
     map!(chomp, open(readlines, "../common/dict/25k_most_common_english_words.txt"))
 )
 
@@ -68,34 +54,56 @@ function extract_terms(path::ASCIIString, collocation_prior::Int, npmi_threshold
     doc_terms, term_counts
 end
 
-function is_valid_word(word::String)
-    n_alpha = 0
-    for c in word
-        if !(isalnum(c) || c == '-' || c == ':') return false end
-        if isalpha(c) n_alpha += 1 end
-    end
-    if (n_alpha == 0 || word[end] == '-') return false end
-    return true
-end
+function load_and_count(path::String)
+    doc_count = 0
+    last_doc = ""
+    input = open(path)
 
-function read_range(str::SubString{ASCIIString})
-    colon_idx = search(str, ':')
-    if colon_idx > 0
-        cur_pos = int(str[1:colon_idx-1]):int(str[colon_idx+1:end])
-    else
-        cur_pos = int(str):int(str)
-    end
-end
+    sentences = Sentence[]
+    doc_grams = Dict{ASCIIString, StringSet}()
 
-function adjacent_words(w1::Word, w2::Word)
-    w1.pos[end] + 1 >= w2.pos[1]
+    total_num_grams = 0
+    unigram_counts = counter(ASCIIString)
+    bigram_counts = counter(ASCIIString)
+    trigram_counts = counter(ASCIIString)
+
+    unigrams_seen = StringSet()
+    bigrams_seen = StringSet()
+    trigrams_seen = StringSet()
+
+    # load and count words
+    for line in eachline(input)
+        doc_id, sentence_idx, text, positions = split(chomp(line), '\t')
+
+        if doc_id != last_doc
+            last_doc = doc_id
+            if doc_count > 0
+                flush_counts!(doc_grams, doc_id,
+                              unigram_counts, bigram_counts, trigram_counts,
+                              unigrams_seen, bigrams_seen, trigrams_seen)
+            end
+            doc_count += 1
+        end
+
+        words = read_words(text, positions, unigrams_seen, bigrams_seen, trigrams_seen)
+        push!(sentences, Sentence(doc_id, int(sentence_idx), words, Term[]))
+        total_num_grams += length(words)
+    end
+
+    flush_counts!(doc_grams, last_doc,
+                  unigram_counts, bigram_counts, trigram_counts,
+                  unigrams_seen, bigrams_seen, trigrams_seen)
+
+    close(input)
+
+    sentences, doc_grams, total_num_grams, unigram_counts, bigram_counts, trigram_counts
 end
 
 function read_words(text::SubString{ASCIIString},
                     positions::SubString{ASCIIString},
-                    unigrams_seen::Set{ASCIIString},
-                    bigrams_seen::Set{ASCIIString},
-                    trigrams_seen::Set{ASCIIString})
+                    unigrams_seen::StringSet,
+                    bigrams_seen::StringSet,
+                    trigrams_seen::StringSet)
     
     word_objects = Word[]
     
@@ -141,18 +149,18 @@ function read_words(text::SubString{ASCIIString},
     word_objects
 end
 
-# we count any given ngram only once perdocument
-function flush_counts!(doc_grams::Dict{ASCIIString, Set{ASCIIString}},
+# we count any given ngram only once per document
+function flush_counts!(doc_grams::Dict{ASCIIString, StringSet},
                        doc_id::SubString{ASCIIString},
-                       unigram_counts::Accumulator{ASCIIString, Int},
-                       bigram_counts::Accumulator{ASCIIString, Int},
-                       trigram_counts::Accumulator{ASCIIString, Int},
-                       unigrams_seen::Set{ASCIIString},
-                       bigrams_seen::Set{ASCIIString},
-                       trigrams_seen::Set{ASCIIString})
+                       unigram_counts::StringCounter,
+                       bigram_counts::StringCounter,
+                       trigram_counts::StringCounter,
+                       unigrams_seen::StringSet,
+                       bigrams_seen::StringSet,
+                       trigrams_seen::StringSet)
 
     if !haskey(doc_grams, doc_id)
-        doc_grams[doc_id] = Set{ASCIIString}()
+        doc_grams[doc_id] = StringSet()
     end
     this_docs_grams = doc_grams[doc_id]
 
@@ -175,75 +183,11 @@ function flush_counts!(doc_grams::Dict{ASCIIString, Set{ASCIIString}},
     empty!(trigrams_seen)
 end
 
-function load_and_count(path::String)
-    doc_count = 0
-    last_doc = ""
-    input = open(path)
-
-    sentences = Sentence[]
-    doc_grams = Dict{ASCIIString, Set{ASCIIString}}()
-
-    total_num_grams = 0
-    unigram_counts = counter(ASCIIString)
-    bigram_counts = counter(ASCIIString)
-    trigram_counts = counter(ASCIIString)
-
-    unigrams_seen = Set{ASCIIString}()
-    bigrams_seen = Set{ASCIIString}()
-    trigrams_seen = Set{ASCIIString}()
-
-    # load and count words
-    for line in eachline(input)
-        doc_id, sentence_idx, text, positions = split(chomp(line), '\t')
-
-        if doc_id != last_doc
-            last_doc = doc_id
-            if doc_count > 0
-                flush_counts!(doc_grams, doc_id,
-                              unigram_counts, bigram_counts, trigram_counts,
-                              unigrams_seen, bigrams_seen, trigrams_seen)
-            end
-            doc_count += 1
-            if doc_count % 1000 == 0
-                println(doc_count)
-            end
-        end
-
-        words = read_words(text, positions, unigrams_seen, bigrams_seen, trigrams_seen)
-        push!(sentences, Sentence(doc_id, int(sentence_idx), words, Term[]))
-        total_num_grams += length(words)
-    end
-
-    flush_counts!(doc_grams, last_doc,
-                  unigram_counts, bigram_counts, trigram_counts,
-                  unigrams_seen, bigrams_seen, trigrams_seen)
-
-    close(input)
-
-    sentences, doc_grams, total_num_grams, unigram_counts, bigram_counts, trigram_counts
-end
-
-function split_hyphenated_unigram(unigram::String)
-    idx = search(unigram, '-')
-    unigram[1:idx-1], unigram[idx+1:end]
-end
-
-function split_bigram(bigram::String)
-    idx = search(bigram, ' ')
-    bigram[1:idx-1], bigram[idx+1:end]
-end
-
-function split_trigram(trigram::String)
-    i1 = search(trigram, ' ')
-    i2 = search(trigram, ' ', i1+1)
-    trigram[1:i1-1], trigram[i1+1:i2-1], trigram[i2+1:end]
-end
-
-function process_hyphenated_unigrams!(unigram_counts::Accumulator{ASCIIString, Int},
-                                      bigram_counts::Accumulator{ASCIIString, Int},
-                                      trigram_counts::Accumulator{ASCIIString, Int})
+function process_hyphenated_unigrams!(unigram_counts::StringCounter,
+                                      bigram_counts::StringCounter,
+                                      trigram_counts::StringCounter)
     
-    split_unigrams = Set{ASCIIString}()
+    split_unigrams = StringSet()
     for (w, unigram_count) in unigram_counts
         dash_idx = search(w, '-')
         if dash_idx > 0
@@ -259,11 +203,11 @@ function process_hyphenated_unigrams!(unigram_counts::Accumulator{ASCIIString, I
     split_unigrams
 end
 
-function process_plural_unigrams!(unigram_counts::Accumulator{ASCIIString, Int},
-                                  bigram_counts::Accumulator{ASCIIString, Int},
-                                  trigram_counts::Accumulator{ASCIIString, Int})
+function process_plural_unigrams!(unigram_counts::StringCounter,
+                                  bigram_counts::StringCounter,
+                                  trigram_counts::StringCounter)
 
-    depluralized_unigrams = Set{ASCIIString}()
+    depluralized_unigrams = StringSet()
     for (w, plural_count) in unigram_counts
         if length(w) > 1 && w[end] == 's' && w[end-1] != 'c'
             singular = chop(w)
@@ -276,23 +220,22 @@ function process_plural_unigrams!(unigram_counts::Accumulator{ASCIIString, Int},
     depluralized_unigrams
 end
 
-function recount_ngrams!(doc_grams::Dict{ASCIIString, Set{ASCIIString}},
-                         unigram_counts::Accumulator{ASCIIString, Int},
-                         bigram_counts::Accumulator{ASCIIString, Int},
-                         trigram_counts::Accumulator{ASCIIString, Int},
-                         split_unigrams::Set{ASCIIString},
-                         depluralized_unigrams::Set{ASCIIString})
+function recount_ngrams!(doc_grams::Dict{ASCIIString, StringSet},
+                         unigram_counts::StringCounter,
+                         bigram_counts::StringCounter,
+                         trigram_counts::StringCounter,
+                         split_unigrams::StringSet,
+                         depluralized_unigrams::StringSet)
 
     empty!(unigram_counts.map)
     empty!(bigram_counts.map)
     empty!(trigram_counts.map)
 
-    doc_count = 0
-    for (doc_id, grams) in doc_grams
-        new_unigrams = Set{ASCIIString}()
-        new_bigrams  = Set{ASCIIString}()
-        new_trigrams = Set{ASCIIString}()
+    new_unigrams = StringSet()
+    new_bigrams  = StringSet()
+    new_trigrams = StringSet()
 
+    for (doc_id, grams) in doc_grams
         for gram in grams
             words = split(gram)
             len = length(words)
@@ -312,88 +255,20 @@ function recount_ngrams!(doc_grams::Dict{ASCIIString, Set{ASCIIString}},
         end
 
         for gram in new_unigrams; add!(unigram_counts, gram); end
+        empty!(new_unigrams)
         for gram in new_bigrams;  add!(bigram_counts, gram);  end
+        empty!(new_bigrams)
         for gram in new_trigrams; add!(trigram_counts, gram); end
-
-        doc_count += 1
-        if doc_count % 1000 == 0
-            println(doc_count)
-        end
+        empty!(new_trigrams)
     end
 
     empty!(doc_grams) # don't need this anymore
 end
 
-function note_unigram!(gram::String,
-                       new_unigrams::Set{ASCIIString},
-                       new_bigrams::Set{ASCIIString},
-                       new_trigrams::Set{ASCIIString},
-                       split_unigrams::Set{ASCIIString},
-                       depluralized_unigrams::Set{ASCIIString})
-    if '-' in gram && gram in split_unigrams
-        s1, s2 = split_hyphenated_unigram(gram)
-        note_bigram!(s1, s2, new_bigrams, new_trigrams, split_unigrams, depluralized_unigrams, false)
-    else
-        if gram in depluralized_unigrams; gram = chop(gram); end
-        push!(new_unigrams, gram)
-    end
-end
-
-function note_bigram!(g1::String,
-                      g2::String,
-                      new_bigrams::Set{ASCIIString},
-                      new_trigrams::Set{ASCIIString},
-                      split_unigrams::Set{ASCIIString},
-                      depluralized_unigrams::Set{ASCIIString},
-                      split_check::Bool=true)
-    if split_check
-        g1_split = '-' in g1 && g1 in split_unigrams
-        g2_split = '-' in g2 && g2 in split_unigrams
-        if g1_split && g2_split
-            return
-        elseif g1_split
-            s1, s2 = split_hyphenated_unigram(g1)
-            note_trigram!(s1, s2, g2,
-                          new_trigrams, split_unigrams, depluralized_unigrams,
-                          false)
-            return
-        elseif g2_split
-            s1, s2 = split_hyphenated_unigram(g2)
-            note_trigram!(g1, s1, s2,
-                          new_trigrams, split_unigrams, depluralized_unigrams,
-                          false)
-            return
-        end
-    end
-
-    if g1 in depluralized_unigrams; return; end
-    if g2 in depluralized_unigrams; g2 = chop(g2); end
-    push!(new_bigrams, "$g1 $g2")
-end
-
-function note_trigram!(g1::String,
-                       g2::String,
-                       g3::String,
-                       new_trigrams::Set{ASCIIString},
-                       split_unigrams::Set{ASCIIString},
-                       depluralized_unigrams::Set{ASCIIString},
-                       split_check::Bool=true)
-    if split_check
-        if '-' in g1 && g1 in split_unigrams; return; end
-        if '-' in g2 && g2 in split_unigrams; return; end
-        if '-' in g3 && g3 in split_unigrams; return; end
-    end
-
-    if g1 in depluralized_unigrams; return; end
-    if g2 in depluralized_unigrams; return; end
-    if g3 in depluralized_unigrams; g3 = chop(g3); end
-    push!(new_trigrams, "$g1 $g2 $g3")
-end
-
 # actually filter if count < 3
-function filter_hapax_legomena!(unigram_counts::Accumulator{ASCIIString, Int},
-                                bigram_counts::Accumulator{ASCIIString, Int},
-                                trigram_counts::Accumulator{ASCIIString, Int})
+function filter_hapax_legomena!(unigram_counts::StringCounter,
+                                bigram_counts::StringCounter,
+                                trigram_counts::StringCounter)
     for (gram, count) in collect(unigram_counts)
         if count < 3; pop!(unigram_counts, gram); end
     end
@@ -407,13 +282,13 @@ end
 
 # see https://svn.spraakdata.gu.se/repos/gerlof/pub/www/Docs/npmi-pfd.pdf
 function find_terms(total_num_grams::Int,
-                    unigram_counts::Accumulator{ASCIIString, Int},
-                    bigram_counts::Accumulator{ASCIIString, Int},
-                    trigram_counts::Accumulator{ASCIIString, Int},
+                    unigram_counts::StringCounter,
+                    bigram_counts::StringCounter,
+                    trigram_counts::StringCounter,
                     prior::Int,
                     npmi_threshold::Float64)
 
-    terms = Set{ASCIIString}()
+    terms = StringSet()
 
     for (gram, count) in unigram_counts
         if (length(gram) >= 3
@@ -450,11 +325,26 @@ function find_terms(total_num_grams::Int,
     terms
 end
 
+function note_term_locations!(sentences::Vector{Sentence},
+                              terms::StringSet,
+                              split_unigrams::StringSet,
+                              depluralized_unigrams::StringSet)
+    
+    doc_terms = Dict{ASCIIString, StringSet}()
+    for sentence in sentences
+        if !haskey(doc_terms, sentence.doc_id)
+            doc_terms[sentence.doc_id] = StringSet()
+        end
+        note_term_locations!(sentence, terms, doc_terms[sentence.doc_id], split_unigrams, depluralized_unigrams)
+    end
+    doc_terms
+end
+
 function note_term_locations!(sentence::Sentence,
-                              terms::Set{ASCIIString},
-                              this_docs_terms::Set{ASCIIString},
-                              split_unigrams::Set{ASCIIString},
-                              depluralized_unigrams::Set{ASCIIString})
+                              terms::StringSet,
+                              this_docs_terms::StringSet,
+                              split_unigrams::StringSet,
+                              depluralized_unigrams::StringSet)
 
     two_ago = null_word
     one_ago = null_word
@@ -501,119 +391,7 @@ function note_term_locations!(sentence::Sentence,
     end
 end
 
-function note_term_locations!(sentences::Vector{Sentence},
-                              terms::Set{ASCIIString},
-                              split_unigrams::Set{ASCIIString},
-                              depluralized_unigrams::Set{ASCIIString})
-    
-    doc_terms = Dict{ASCIIString, Set{ASCIIString}}()
-    for sentence in sentences
-        if !haskey(doc_terms, sentence.doc_id)
-            doc_terms[sentence.doc_id] = Set{ASCIIString}()
-        end
-        note_term_locations!(sentence, terms, doc_terms[sentence.doc_id], split_unigrams, depluralized_unigrams)
-    end
-    doc_terms
-end
-
-function note_unigram!(sentence::Sentence,
-                       terms::Set{ASCIIString},
-                       doc_terms::Set{ASCIIString},
-                       split_unigrams::Set{ASCIIString},
-                       depluralized_unigrams::Set{ASCIIString},
-                       idx::Int,
-                       start_pos::Int, end_pos::Int,
-                       gram::String)
-
-    if '-' in gram && gram in split_unigrams
-        s1, s2 = split_hyphenated_unigram(gram)
-        note_bigram!(sentence,
-                     terms, doc_terms,
-                     split_unigrams, depluralized_unigrams,
-                     idx, idx,
-                     start_pos, end_pos,
-                     s1, s2,
-                     false)
-    else
-        if gram in depluralized_unigrams; gram = chop(gram); end
-        if gram in terms
-            push!(sentence.terms, Term(gram, idx:idx, start_pos:end_pos))
-            push!(doc_terms, gram)
-        end
-    end
-end
-
-function note_bigram!(sentence::Sentence,
-                      terms::Set{ASCIIString},
-                      doc_terms::Set{ASCIIString},
-                      split_unigrams::Set{ASCIIString},
-                      depluralized_unigrams::Set{ASCIIString},
-                      start_idx::Int, end_idx::Int,
-                      start_pos::Int, end_pos::Int,
-                      g1::String, g2::String,
-                      split_check::Bool=true)
-
-    if split_check
-        g1_split = '-' in g1 && g1 in split_unigrams
-        g2_split = '-' in g2 && g2 in split_unigrams
-        if g1_split && g2_split
-            return
-        elseif g1_split
-            s1, s2 = split_hyphenated_unigram(g1)
-            note_trigram!(sentence,
-                          terms, doc_terms,
-                          split_unigrams, depluralized_unigrams,
-                          start_idx, end_idx,
-                          start_pos, end_pos,
-                          s1, s2, g2,
-                          false)
-            return
-        elseif g2_split
-            s1, s2 = split_hyphenated_unigram(g2)
-            note_trigram!(sentence,
-                          terms, doc_terms,
-                          split_unigrams, depluralized_unigrams,
-                          start_idx, end_idx,
-                          start_pos, end_pos,
-                          g1, s1, s2,
-                          false)
-            return
-        end
-    end
-
-    if g2 in depluralized_unigrams; g2 = chop(g2); end
-    gram = "$g1 $g2"
-    if gram in terms
-        push!(sentence.terms, Term(gram, start_idx:end_idx, start_pos:end_pos))
-        push!(doc_terms, gram)
-    end
-end
-
-function note_trigram!(sentence::Sentence,
-                       terms::Set{ASCIIString},
-                       doc_terms::Set{ASCIIString},
-                       split_unigrams::Set{ASCIIString},
-                       depluralized_unigrams::Set{ASCIIString},
-                       start_idx::Int, end_idx::Int,
-                       start_pos::Int, end_pos::Int,
-                       g1::String, g2::String, g3::String,
-                       split_check::Bool=true)
-
-    if split_check
-        if ('-' in g1 && g1 in split_unigrams); return; end
-        if ('-' in g2 && g2 in split_unigrams); return; end
-        if ('-' in g3 && g3 in split_unigrams); return; end
-    end
-
-    if g3 in depluralized_unigrams; g3 = chop(g3); end
-    gram = "$g1 $g2 $g3"
-    if gram in terms
-        push!(sentence.terms, Term(gram, start_idx:end_idx, start_pos:end_pos))
-        push!(doc_terms, gram)
-    end
-end
-
-function count_terms(doc_terms::Dict{ASCIIString, Set{ASCIIString}})
+function count_terms(doc_terms::Dict{ASCIIString, StringSet})
     term_counts = counter(ASCIIString)
     for (doc_id, terms) in doc_terms
         for term in terms
@@ -624,9 +402,9 @@ function count_terms(doc_terms::Dict{ASCIIString, Set{ASCIIString}})
 end
 
 function filter_covered_terms!(sentences::Vector{Sentence},
-                               doc_terms::Dict{ASCIIString, Set{ASCIIString}},
-                               term_counts::Accumulator{ASCIIString, Int})
-    popped_terms = Set{ASCIIString}()
+                               doc_terms::Dict{ASCIIString, StringSet},
+                               term_counts::StringCounter)
+    popped_terms = StringSet()
     sizehint(popped_terms, length(term_counts))
     cover_thresh = 0.95
 
