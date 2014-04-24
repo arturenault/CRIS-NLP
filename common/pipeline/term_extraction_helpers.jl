@@ -7,6 +7,7 @@ export is_valid_word,
        split_bigram,
        split_trigram,
        note_unigram!,
+       note_acronym!,
        note_bigram!,
        note_trigram!
 
@@ -91,6 +92,49 @@ function note_unigram!(sentence::Sentence,
             push!(sentence.terms, Term(gram, idx:idx, start_pos:end_pos))
             push!(doc_terms, gram)
         end
+    end
+end
+
+function note_acronym!(sentence::Sentence,
+                       terms::StringSet,
+                       doc_terms::StringSet,
+                       split_unigrams::StringSet,
+                       depluralized_unigrams::StringSet,
+                       idx::Int,
+                       start_pos::Int, end_pos::Int,
+                       phrase::String)
+    push!(sentence.terms, Term(phrase, idx:idx, start_pos:end_pos))
+    push!(doc_terms, phrase)
+    
+    words = split(phrase)
+    len = length(words)
+    if len == 3
+        note_bigram!(sentence,
+                     terms, doc_terms,
+                     split_unigrams, depluralized_unigrams,
+                     idx, idx, start_pos, end_pos, words[2], words[3])
+    elseif len == 4
+        note_bigram!(sentence,
+                     terms, doc_terms,
+                     split_unigrams, depluralized_unigrams,
+                     idx, idx, start_pos, end_pos, words[1], words[2])
+        note_bigram!(sentence,
+                     terms, doc_terms,
+                     split_unigrams, depluralized_unigrams,
+                     idx, idx, start_pos, end_pos, words[2], words[3])
+        note_trigram!(sentence,
+                      terms, doc_terms,
+                      split_unigrams, depluralized_unigrams,
+                      idx, idx, start_pos, end_pos, words[2], words[3], words[4])
+    elseif len >= 5
+        note_bigram!(sentence,
+                     terms, doc_terms,
+                     split_unigrams, depluralized_unigrams,
+                     idx, idx, start_pos, end_pos, words[1], words[2])
+        note_trigram!(sentence,
+                      terms, doc_terms,
+                      split_unigrams, depluralized_unigrams,
+                      idx, idx, start_pos, end_pos, words[end-2], words[end-1], words[end])
     end
 end
 

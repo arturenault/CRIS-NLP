@@ -6,6 +6,7 @@ export Word,
        Term,
        Sentence,
        StringSet,
+       StringMap,
        StringCounter
 
 type Word
@@ -29,6 +30,7 @@ type Sentence
 end
 
 typealias StringSet     Set{ASCIIString}
+typealias StringMap     Dict{ASCIIString, ASCIIString}
 typealias StringCounter Accumulator{ASCIIString, Int}
 
 end

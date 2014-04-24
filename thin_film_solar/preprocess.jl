@@ -21,8 +21,8 @@ using CommonTextTransforms
 using PreprocessingRules
 using ChemicalPreprocessingRules
 
-const titles    = load_string_to_string_dict("data/thin_film_titles.txt", UTF8String)
-const abstracts = load_string_to_string_dict("data/thin_film_abstracts.txt", UTF8String)
+const titles    = load_string_to_string_map("data/thin_film_titles.txt", UTF8String)
+const abstracts = load_string_to_string_map("data/thin_film_abstracts.txt", UTF8String)
 const possible_acronym_log = counter(ASCIIString)
 
 import CommonTextTransforms.filter_stopwords,
@@ -95,22 +95,26 @@ function write_words_and_pos(output, doc_id, data)
     if length(data) == 0; return; end
 
     cur_sentence = data[1].sentence_idx
-    write(output, doc_id)
-    write(output, "\t$cur_sentence\t")
 
     start_idx = 1
     for i in 1:length(data)
         if data[i].sentence_idx != cur_sentence
-            write_words_and_pos(output, data[start_idx:i-1])
+            if i - start_idx > 1
+                write(output, doc_id)
+                write(output, "\t$cur_sentence\t")
+                write_words_and_pos(output, data[start_idx:i-1])
+            end
 
             cur_sentence = data[i].sentence_idx
             start_idx = i
-            write(output, doc_id)
-            write(output, "\t$cur_sentence\t")
         end
     end
 
-    write_words_and_pos(output, data[start_idx:end])
+    if length(data) > start_idx
+        write(output, doc_id)
+        write(output, "\t$cur_sentence\t")
+        write_words_and_pos(output, data[start_idx:end])
+    end
 end
 
 function main()
@@ -118,10 +122,10 @@ function main()
     abstract_pipeline = build_abstract_pipeline()
 
     output = open("output/thin_film_preprocessed.txt", "w")
-    acronyms = open("output/thin_film_acronyms.txt", "w")
+    acronyms = open("output/thin_film_possible_acronyms.txt", "w")
 
-    count = 0
     docs = keys(titles)
+    doc_count = 0
     for doc_id in docs
         process!(title_pipeline, titles[doc_id], base_sentence_idx=0)
         title_result = result!(title_pipeline)
@@ -131,14 +135,17 @@ function main()
         abstract_result = result!(abstract_pipeline)
         write_words_and_pos(output, doc_id, abstract_result)
 
-        count += 1
-        if count % 1000 == 0
-            println(count)
+        doc_count += 1
+        if doc_count % 1000 == 0
+            println("$doc_count documents processed")
         end
     end
+    println("$doc_count documents processed")
 
     for (ac, count) in sort!(collect(possible_acronym_log), by=t->t[2], rev=true)
-        write(acronyms, "$ac\t$count\n")
+        if count >= 3
+            write(acronyms, "$ac\t$count\n")
+        end
     end
 
     close(output)

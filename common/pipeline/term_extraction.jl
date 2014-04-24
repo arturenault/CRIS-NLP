@@ -8,6 +8,9 @@ require("term_extraction_rules.jl")
 using TermExtractionRules
 
 using DataStructures
+
+require("acronyms.jl")
+using Acronyms
 require("string_utils.jl")
 using StringUtils
 require("term_extraction_types.jl")
@@ -20,10 +23,15 @@ const common_words_25k = StringSet(
     map!(chomp, open(readlines, "../common/dict/25k_most_common_english_words.txt"))
 )
 
-function extract_terms(path::ASCIIString, collocation_prior::Int, npmi_threshold::Float64)
+function extract_terms(texts_path::String, possible_acronyms_path::String,
+                       collocation_prior::Int, npmi_threshold::Float64)
     println("Reading texts")
     
-    (sentences, doc_grams, total_num_grams, unigram_counts, bigram_counts, trigram_counts) = load_and_count(path)
+    (sentences, doc_grams, total_num_grams, unigram_counts, bigram_counts, trigram_counts) = load_and_count(texts_path)
+
+    println("Processing acronyms")
+    ac_phrase, phrase_ac = process_acronyms!(possible_acronyms_path, sentences, doc_grams,
+                                             unigram_counts, bigram_counts, trigram_counts)
 
     println("Selecting terms")
     
@@ -43,15 +51,14 @@ function extract_terms(path::ASCIIString, collocation_prior::Int, npmi_threshold
 
     println("Locating terms in sentences")
     
-    doc_terms = note_term_locations!(sentences, terms, split_unigrams, depluralized_unigrams)
+    doc_terms = note_term_locations!(sentences, terms,
+                                     split_unigrams, depluralized_unigrams, ac_phrase)
     term_counts = count_terms(doc_terms)
 
     println("Filtering overlapping terms")
     filter_covered_terms!(sentences, doc_terms, term_counts)
 
-    # TODO: integrate acronyms into pipeline
-
-    doc_terms, term_counts
+    doc_terms, term_counts, ac_phrase, phrase_ac
 end
 
 function load_and_count(path::String)
@@ -76,12 +83,12 @@ function load_and_count(path::String)
         doc_id, sentence_idx, text, positions = split(chomp(line), '\t')
 
         if doc_id != last_doc
-            last_doc = doc_id
             if doc_count > 0
-                flush_counts!(doc_grams, doc_id,
+                flush_counts!(doc_grams, last_doc,
                               unigram_counts, bigram_counts, trigram_counts,
                               unigrams_seen, bigrams_seen, trigrams_seen)
             end
+            last_doc = doc_id
             doc_count += 1
         end
 
@@ -181,6 +188,29 @@ function flush_counts!(doc_grams::Dict{ASCIIString, StringSet},
         add!(trigram_counts, gram)
     end
     empty!(trigrams_seen)
+end
+
+function process_acronyms!(path::String,
+                           sentences::Vector{Sentence},
+                           doc_grams::Dict{ASCIIString, StringSet},
+                           unigram_counts::StringCounter,
+                           bigram_counts::StringCounter,
+                           trigram_counts::StringCounter)
+    input = open(path)
+    possible_acs = Set{ASCIIString}()
+    for line in eachline(input)
+        push!(possible_acs, line[1:search(line, '\t')-1])
+    end
+    close(input)
+
+    ac_phrase_counts = count_acronyms(sentences, possible_acs)
+    ac_phrase, phrase_ac = canonicalize_acronyms(ac_phrase_counts)
+    phrase_ac_trie = build_phrase_ac_trie(phrase_ac)
+    substitute_acronyms!(sentences, doc_grams,
+                         phrase_ac, phrase_ac_trie,
+                         unigram_counts, bigram_counts, trigram_counts)
+
+    ac_phrase, phrase_ac
 end
 
 function process_hyphenated_unigrams!(unigram_counts::StringCounter,
@@ -328,14 +358,16 @@ end
 function note_term_locations!(sentences::Vector{Sentence},
                               terms::StringSet,
                               split_unigrams::StringSet,
-                              depluralized_unigrams::StringSet)
+                              depluralized_unigrams::StringSet,
+                              ac_phrase::StringMap)
     
     doc_terms = Dict{ASCIIString, StringSet}()
     for sentence in sentences
         if !haskey(doc_terms, sentence.doc_id)
             doc_terms[sentence.doc_id] = StringSet()
         end
-        note_term_locations!(sentence, terms, doc_terms[sentence.doc_id], split_unigrams, depluralized_unigrams)
+        note_term_locations!(sentence, terms, doc_terms[sentence.doc_id],
+                             split_unigrams, depluralized_unigrams, ac_phrase)
     end
     doc_terms
 end
@@ -344,7 +376,8 @@ function note_term_locations!(sentence::Sentence,
                               terms::StringSet,
                               this_docs_terms::StringSet,
                               split_unigrams::StringSet,
-                              depluralized_unigrams::StringSet)
+                              depluralized_unigrams::StringSet,
+                              ac_phrase::StringMap)
 
     two_ago = null_word
     one_ago = null_word
@@ -352,6 +385,8 @@ function note_term_locations!(sentence::Sentence,
     two_ago_lower = false
     one_ago_lower = false
     cur_word_lower = false
+    one_ago_ac = false
+    cur_word_ac = false
 
     # NOTE: this is the roughly the same procedure we used to count ngrams
     #       except the note_ngram! functions account for split/depluralized words
@@ -363,20 +398,42 @@ function note_term_locations!(sentence::Sentence,
             one_ago = null_word
             two_ago_lower = false
             one_ago_lower = false
+            one_ago_ac = false
+            cur_word_ac = false
             continue
         end
 
-        note_unigram!(sentence,
-                      terms, this_docs_terms,
-                      split_unigrams, depluralized_unigrams,
-                      i, cur_word.pos[1], cur_word.pos[end], cur_word.text)
         cur_word_lower = is_lower_or_dash(cur_word.text)
-        if length(one_ago.text) > 0 && adjacent_words(one_ago, cur_word) && (cur_word_lower || one_ago_lower)
+        cur_word_ac = possible_acronym(cur_word.text) && haskey(ac_phrase, cur_word.text)
+
+        if cur_word_ac
+            phrase = ac_phrase[cur_word.text]
+            note_acronym!(sentence,
+                          terms, this_docs_terms,
+                          split_unigrams, depluralized_unigrams,
+                          i, cur_word.pos[1], cur_word.pos[end], phrase)
+        else
+            note_unigram!(sentence,
+                          terms, this_docs_terms,
+                          split_unigrams, depluralized_unigrams,
+                          i, cur_word.pos[1], cur_word.pos[end], cur_word.text)
+        end
+
+        if (length(one_ago.text) > 0
+            && adjacent_words(one_ago, cur_word)
+            && !cur_word_ac
+            && (cur_word_lower || one_ago_lower))
+
             note_bigram!(sentence,
                          terms, this_docs_terms,
                          split_unigrams, depluralized_unigrams,
                          i-1, i, one_ago.pos[1], cur_word.pos[end], one_ago.text, cur_word.text)
-            if length(two_ago.text) > 0 && adjacent_words(two_ago, one_ago) && (one_ago_lower || (two_ago_lower && cur_word_lower))
+
+            if (length(two_ago.text) > 0
+                && adjacent_words(two_ago, one_ago)
+                && !one_ago_ac
+                && (one_ago_lower || (two_ago_lower && cur_word_lower)))
+
                 note_trigram!(sentence,
                               terms, this_docs_terms,
                               split_unigrams, depluralized_unigrams,
@@ -388,6 +445,7 @@ function note_term_locations!(sentence::Sentence,
         one_ago = cur_word
         two_ago_lower = one_ago_lower
         one_ago_lower = cur_word_lower
+        one_ago_ac = cur_word_ac
     end
 end
 
