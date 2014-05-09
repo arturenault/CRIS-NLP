@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Document Navigator</title>
+
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="bootstrap-select.min.css">
+    <link rel="stylesheet" href="navigator.css">
+  </head>
+
+  <body>
+    <div class="container">
+
+      <h2>Search Corpus</h2>
+
+      <div id="search-bar">
+        <input id="search-box" class="typeahead" type="text">
+        <select id="search-ordering" class="selectpicker">
+          <option>By Age</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <div class="search-scope col-md-3">
+          <div id="search-terms">
+            <ul id="search-term-list" class="list-group"></ul>
+          </div>
+          <div id="facets">
+          </div>
+        </div>
+        <div class="col-md-9">
+          <table id="abstract-view" class="table">
+          </table>
+        </div>
+      </div>
+
+      <div class="row">
+        <div id="paginator-wrapper" class="col-md-4 col-md-offset-6"></div>
+      </div>
+
+    </div>
+
+    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.0/js/bootstrap.min.js"></script>
+    <script src="bootstrap-select.min.js"></script>
+    <script src="bootstrap-paginator.min.js"></script>
+    <script src="typeahead.bundle.js"></script>
+    <script src="handlebars.js"></script>
+    <script src="navigator.js"></script>
+
+  </body>
+</html>
