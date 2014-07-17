@@ -34,7 +34,7 @@ end
 set_resource_routes!(app, resources)
 
 Morsel.get(app, "/autocomplete/terms") do request, response
-    autocomplete_term(get_query(request), scope)
+    autocomplete_term(convert(ASCIIString, get_query(request)), scope)
 end
 
 Morsel.put(app, "/scope/refine") do request, response

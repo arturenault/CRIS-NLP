@@ -144,8 +144,8 @@ function get_abstracts(scope::SearchScope,
     limit = int(get(options, "limit", 20))
     start = int(get(options, "start", 1))
 
-    doc_ids = [keys(scope.doc_terms...)]   
-    sort!(doc_ids, by=(id -> int(scope.metadata[id]["pub_year"])), rev=true)
+    doc_ids = collect(keys(scope.doc_terms))   
+    sort!(doc_ids, rev=true)
     
     result = IOBuffer()
 
@@ -162,6 +162,7 @@ function get_abstracts(scope::SearchScope,
         authors      = doc_metadata["authors"]
         journal      = doc_metadata["journal"]
         volume       = doc_metadata["volume"]
+        pub_year     = doc_metadata["pub_year"]
         start_page   = doc_metadata["start_page"]
         end_page     = doc_metadata["end_page"]
 
@@ -176,12 +177,12 @@ function get_abstracts(scope::SearchScope,
         write_and_escape(result, "<h5>$authors</h5>")
         write(result, "<h5>")
         write_and_escape(result, "$journal $volume ")
-        write_and_escape(result, "($pub_year): ")
+        write_and_escape(result, "$(pub_year): ")
         write_and_escape(result, "$start_page-$end_page")
         write(result, "</h5>")
         write_and_escape(result, "<p>$(scope.abstracts[doc_id])</p>")
         write(result, "</td></tr>")
-        write(result, '"')
+        write(result, '\"')
         delim = ","
     end
     write(result, ']')
@@ -205,7 +206,11 @@ function get_facets(scope::SearchScope)
 
     journal_counts = counter(ASCIIString)
     for doc_id in doc_ids
-        add!(journal_counts, uppercase(scope.metadata[doc_id]["journal"]))
+        try
+            push!(journal_counts, uppercase(scope.metadata[doc_id]["journal"]))
+        catch
+            print("Key not found\n")
+        end
     end
 
     journal_counts = collect(journal_counts)
@@ -232,7 +237,7 @@ function count_terms(doc_terms::Dict{ASCIIString, Set{ASCIIString}})
     term_counts = counter(ASCIIString)
     for (doc_id, terms) in doc_terms
         for term in terms
-            add!(term_counts, term)
+            push!(term_counts, term)
         end
     end
     for (term, count) in collect(term_counts)

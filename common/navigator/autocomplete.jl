@@ -11,7 +11,7 @@ function autocomplete_term(query::ASCIIString, scope::SearchScope)
     matching_terms = filter((term, count) -> contains(lowercase(term), lowercase(query)),
                             scope.term_counts.map)
     
-    term_counts_as_json(matching_terms, scope.ontology_term_counts)
+    term_counts_as_json(matching_terms)
 end
 
 function term_counts_as_json(term_counts)
