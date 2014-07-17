@@ -104,13 +104,14 @@ function count_acronym!(ac_phrase_counts::Dict{ASCIIString, StringCounter},
                         ac::String,
                         ac_phrase_arr::Vector{String})
     reverse!(ac_phrase_arr)
-    last_word = ac_phrase_arr[end]
-    if (last_word[end] == 's'
-        && length(last_word) >= 2
-        && last_word[end-1] in if_before_terminal_s_probably_a_plural_word)
-        ac_phrase_arr[end] = chop(last_word)
+    if(length(ac_phrase_arr)>0)
+       last_word = ac_phrase_arr[end]
+       if (last_word[end] == 's'
+           && length(last_word) >= 2
+           && last_word[end-1] in if_before_terminal_s_probably_a_plural_word)
+           ac_phrase_arr[end] = chop(last_word)
+       end
     end
-
     ac_phrase = join(ac_phrase_arr, ' ')
     if is_alpha_space_or_dash(ac_phrase)
         if !haskey(ac_phrase_counts, ac)
@@ -199,7 +200,7 @@ function build_phrase_ac_trie(phrase_ac::StringMap)
     trie = PhraseToAcronymTrie()
     for (phrase, ac) in phrase_ac
         words = split(phrase)
-        
+
         for i = 1:length(words)-1
             key = (i, words[i])
             if haskey(trie, key)
