@@ -79,7 +79,7 @@ function generalize_scope!(scope::SearchScope,
             if !haskey(scope.doc_terms, doc_id) && doc_in_scope(scope, doc_id, terms)
                 scope.doc_terms[doc_id] = terms
                 for term in terms
-                    add!(scope.term_counts, term)
+                    push!(scope.term_counts, term)
                 end
             end
         end
@@ -204,18 +204,17 @@ function get_abstracts(scope::SearchScope,
 end
 
 function highlight_terms(scope::SearchScope, doc_id::String, term_dict::Dict{ASCIIString, Set{ASCIIString}})
-    text = convert(Array{ASCIIString}, split(scope.abstracts[doc_id], " "));
+    paragraph = string(scope.abstracts[doc_id])
     terms = term_dict[doc_id]
-    for i = 1:(length(text)-1)
+    for term in terms
         try
-            if in(text[i], terms)
-                highlighted = "<span class=\"term\">$(text[i])</span>"
-                text[i] = highlighted;
+            if contains(paragraph, term)
+                paragraph = replace(paragraph, term, "<span class=\"term\">$(term)</span>")
             end
         catch
         end
     end
-    return join(text, " ");
+    return paragraph
 end
 
 function write_and_escape(buf::IOBuffer, str::String)
