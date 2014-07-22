@@ -1,5 +1,8 @@
 module NavigatorSearch
 
+require("../util/serialization.jl")
+using Serialization
+
 using DataStructures
 
 export SearchScope,
@@ -141,6 +144,8 @@ function get_abstracts(scope::SearchScope,
                        options::Dict{String, String};
                        wrap_in_json_object=false)
 
+    const doc_terms   = load_string_to_set_of_strings_map("../output/thin_film_doc_terms.txt", element_delim='|')
+
     limit = int(get(options, "limit", 20))
     start = int(get(options, "start", 1))
 
@@ -165,6 +170,7 @@ function get_abstracts(scope::SearchScope,
         pub_year     = doc_metadata["pub_year"]
         start_page   = doc_metadata["start_page"]
         end_page     = doc_metadata["end_page"]
+        text         = highlight_terms(scope, doc_id, doc_terms)
 
         write(result, delim)
         write(result, '"')
@@ -180,7 +186,7 @@ function get_abstracts(scope::SearchScope,
         write_and_escape(result, "$(pub_year): ")
         write_and_escape(result, "$start_page-$end_page")
         write(result, "</h5>")
-        write_and_escape(result, "<p>$(scope.abstracts[doc_id])</p>")
+        write_and_escape(result, "<p>$(text))</p>")
         write(result, "</td></tr>")
         write(result, '\"')
         delim = ","
@@ -195,6 +201,18 @@ function get_abstracts(scope::SearchScope,
     else
         return (takebuf_string(result), length(doc_ids))
     end
+end
+
+function highlight_terms(scope::SearchScope, doc_id::String, term_dict::Dict{ASCIIString, Set{ASCIIString}})
+    text = convert(Array{ASCIIString}, split(scope.abstracts[doc_id], " "));
+    terms = term_dict[doc_id]
+    for i = 1:(length(text)-1)
+        if in(text[i], terms)
+            highlighted = "<span class=\"term\">$(text[i])</span>"
+            text[i] = highlighted;
+        end
+    end
+    return join(text, " ");
 end
 
 function write_and_escape(buf::IOBuffer, str::String)
