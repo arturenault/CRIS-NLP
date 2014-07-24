@@ -33,6 +33,11 @@ for resource in ["html", "css", "js",
 end
 set_resource_routes!(app, resources)
 
+Morsel.get(app, "/") do request, response
+    response.headers["Content-Type"] = "text/html"
+    open(readall, "html/navigator.html")
+end
+
 Morsel.get(app, "/autocomplete/terms") do request, response
     autocomplete_term(convert(ASCIIString, get_query(request)), scope)
 end
