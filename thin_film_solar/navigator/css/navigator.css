@@ -118,5 +118,22 @@ html {overflow-y: scroll;}
 }
 
 .term {
+  color: black;
   background-color: yellow;
+}
+
+.approve-btn {
+  position:absolute;
+  left: 30px;
+  width: 50px;
+}
+
+.reject-btn {
+  position:absolute;
+  right: 30px;
+  width: 50px;
+}
+
+.popover-content {
+  height: 50px;
 }

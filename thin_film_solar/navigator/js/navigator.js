@@ -1,4 +1,4 @@
-$(document).ready(function() {
+$(function() {
     $('.selectpicker').selectpicker();
 
     var get_sort_type = function() {
@@ -45,6 +45,14 @@ $(document).ready(function() {
         } else {
             $('#paginator-wrapper').empty();
         }
+
+        $(".term").popover({
+            placement: "top",
+            html: true,
+            trigger: "focus",
+            title: "Should this be a term?",
+            content: "<button type='button' class='approve-btn btn btn-success'>Yes</button> <button type='button' class='reject-btn btn btn-danger'>No</button>"
+        });
     }
 
     var load_facets = function(facets) {
