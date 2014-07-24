@@ -67,4 +67,12 @@ Morsel.put(app, "/scope/set-facet/journal") do request, response
     get_abstracts(scope, options, wrap_in_json_object=true)
 end
 
+Morsel.post(app, "/approve") do request, response
+    "Approved!"
+end
+
+Morsel.post(app, "/reject") do request, response
+    "Rejected!"
+end
+
 Morsel.start(app, 8000)

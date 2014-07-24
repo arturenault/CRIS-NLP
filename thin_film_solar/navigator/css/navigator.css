@@ -122,18 +122,33 @@ html {overflow-y: scroll;}
   background-color: yellow;
 }
 
+.reviewed {
+  background-color: yellowgreen;
+}
+
 .approve-btn {
   position:absolute;
-  left: 30px;
-  width: 50px;
+  left: 20px;
+  width: 60px;
 }
 
 .reject-btn {
   position:absolute;
-  right: 30px;
-  width: 50px;
+  right: 20px;
+  width: 60px;
 }
 
 .popover-content {
   height: 50px;
+}
+
+.popover-title-text {
+  margin-left: 10px;
+}
+
+.close {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  display: inline-block;
 }

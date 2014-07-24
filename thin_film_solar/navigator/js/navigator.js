@@ -35,10 +35,10 @@ $(function() {
                 onPageChanged: function(event, oldPage, newPage) {
                     start = (newPage-1)*page_limit + 1;
                     $.getJSON('/abstracts?sort=' + get_sort_type() + '&limit=' + page_limit + '&start=' + start,
-                              function(data) {
-                                 window.scrollTo(0, 0);
-                                 show_abstracts(data, newPage);
-                              });
+                      function(data) {
+                       window.scrollTo(0, 0);
+                       show_abstracts(data, newPage);
+                   });
                 }
             });
             $('#paginator ul').addClass('pagination');
@@ -49,9 +49,26 @@ $(function() {
         $(".term").popover({
             placement: "top",
             html: true,
-            trigger: "focus",
-            title: "Should this be a term?",
+            trigger: "click",
+            title: "<button type='button' class='close' onclick='$(&quot;.term&quot;).popover(&quot;hide&quot;);'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
             content: "<button type='button' class='approve-btn btn btn-success'>Yes</button> <button type='button' class='reject-btn btn btn-danger'>No</button>"
+        });
+
+        $('.term').on('shown.bs.popover', function () {
+            $(".approve-btn").not(".active").click(function() {
+                var button = $(this);
+                $.post("approve", "").done(function(data) {
+                    button.append("  &#x2713;").attr("disabled", "disabled");
+                });
+            });
+
+
+            $(".reject-btn").not(".active").click(function() {
+                var button = $(this);
+                $.post("reject", "").done(function(data) {
+                    button.append("  &#x2717;").attr("disabled", "disabled");
+                });
+            });
         });
     }
 
@@ -62,18 +79,18 @@ $(function() {
             if ($('#journal-facet-div').length == 0) {
                 $('#facets').append(
                     '<div id="journal-facet-div">' +
-                      '<h4 class="sidebar-header">Top Journals</h4>' +
-                      '<ul id="journal-facet-list" class="list-group facet-list"></ul>' +
+                    '<h4 class="sidebar-header">Top Journals</h4>' +
+                    '<ul id="journal-facet-list" class="list-group facet-list"></ul>' +
                     '</div>'
-                );
+                    );
             }
 
             $('#journal-facet-list').empty();
             facets.journals.forEach(function (journal) {
                 var item = document.createElement('li');
                 $(item).addClass('list-group-item')
-                       .text(journal.name)
-                       .prepend('<span class="badge">' + journal.count + '</span>');
+                .text(journal.name)
+                .prepend('<span class="badge">' + journal.count + '</span>');
                 $(item).click(function() {
                     if ($(item).hasClass('active')) {
                         $(item).removeClass('active');
@@ -98,80 +115,80 @@ $(function() {
                         });
                     }
                 });
-                $('#journal-facet-list').append(item);
-            });
-        }
-    }
+$('#journal-facet-list').append(item);
+});
+}
+}
 
-    var refine_scope = function(query) {
+var refine_scope = function(query) {
+    $.ajax({
+        url: '/scope/refine?q=' + query + '&sort=' + get_sort_type() + '&limit=' + page_limit,
+        type: 'PUT',
+        dataType: 'json',
+        success: function(data) {
+            load_facets(data.facets);
+            show_abstracts(data);
+        }
+    });
+
+    var remove_icon = document.createElement('span');
+    $(remove_icon).addClass('glyphicon')
+    .addClass('glyphicon-remove');
+
+    var badge = document.createElement('span');
+    $(badge).addClass('badge')
+    .append(remove_icon);
+
+    var item = document.createElement('li');
+    $(item).addClass('list-group-item')
+    .text(query)
+    .prepend(badge);
+
+    $(badge).click(function() {
         $.ajax({
-            url: '/scope/refine?q=' + query + '&sort=' + get_sort_type() + '&limit=' + page_limit,
+            url: '/scope/generalize?q=' + query + '&sort=' + get_sort_type() + '&limit=' + page_limit,
             type: 'PUT',
             dataType: 'json',
             success: function(data) {
-                load_facets(data.facets);
-                show_abstracts(data);
+                $(item).remove();
+                if (data.abstracts.length == 0) {
+                    $('#abstract-view').empty();
+                    $('#search-terms-header').remove();
+                    $('#facets').empty();
+                    $('#paginator-wrapper').empty();
+                } else {
+                    load_facets(data.facets);
+                    show_abstracts(data);
+                }
             }
         });
-
-        var remove_icon = document.createElement('span');
-        $(remove_icon).addClass('glyphicon')
-                      .addClass('glyphicon-remove');
-
-        var badge = document.createElement('span');
-        $(badge).addClass('badge')
-                .append(remove_icon);
-
-        var item = document.createElement('li');
-        $(item).addClass('list-group-item')
-               .text(query)
-               .prepend(badge);
-
-        $(badge).click(function() {
-            $.ajax({
-                url: '/scope/generalize?q=' + query + '&sort=' + get_sort_type() + '&limit=' + page_limit,
-                type: 'PUT',
-                dataType: 'json',
-                success: function(data) {
-                    $(item).remove();
-                    if (data.abstracts.length == 0) {
-                        $('#abstract-view').empty();
-                        $('#search-terms-header').remove();
-                        $('#facets').empty();
-                        $('#paginator-wrapper').empty();
-                    } else {
-                        load_facets(data.facets);
-                        show_abstracts(data);
-                    }
-                }
-            });
-        });
-
-        if ($('#search-terms-header').length == 0) {
-            $('#search-terms').prepend('<h4 id="search-terms-header" class="sidebar-header">Search Scope</h4>')
-        }
-
-        $('#search-term-list').append(item);
-    };
-
-    terms = new Bloodhound({
-        datumTokenizer: function(d) { return Bloodhound.tokenizers.whitespace(d); },
-        queryTokenizer: Bloodhound.tokenizers.whitespace,
-        remote: 'http://localhost:8000/autocomplete/terms?q=%QUERY'
     });
 
-    terms.initialize();
+    if ($('#search-terms-header').length == 0) {
+        $('#search-terms').prepend('<h4 id="search-terms-header" class="sidebar-header">Search Scope</h4>')
+    }
 
-    $('#search-box').typeahead({
-        minLength: 2,
-    }, {
-        source: terms.ttAdapter(),
-        templates: {
-            header: '<h4 class="autocomplete-header">Ontology Terms</h4>',
-            suggestion: Handlebars.compile(
-                '<p class="tt-term-count">{{count}}</p><p>{{term}}</p>'
+    $('#search-term-list').append(item);
+};
+
+terms = new Bloodhound({
+    datumTokenizer: function(d) { return Bloodhound.tokenizers.whitespace(d); },
+    queryTokenizer: Bloodhound.tokenizers.whitespace,
+    remote: 'http://localhost:8000/autocomplete/terms?q=%QUERY'
+});
+
+terms.initialize();
+
+$('#search-box').typeahead({
+    minLength: 2,
+}, {
+    source: terms.ttAdapter(),
+    templates: {
+        header: '<h4 class="autocomplete-header">Ontology Terms</h4>',
+        suggestion: Handlebars.compile(
+            '<p class="tt-term-count">{{count}}</p><p>{{term}}</p>'
             )
-        }
+    }
     }/*, {
         source: some_other_autocomplete_section.ttAdapter(),
         templates: {
