@@ -50,23 +50,30 @@ $(function() {
             selection = get_selected_text();
             if(selection.length >= 3) {
                 var spn = "<span class='selected " + escape_selection(selection) + "' data-toggle='popover' tabindex='-1'>" + selection + "</span>"
+                $(".term").popover("hide");
+                $(".selected").popover("hide");
                 $(this).html(replace_all(selection, spn, $(this).html()));
             }
 
             $(".term").popover({
                 placement: "top",
                 html: true,
-                trigger: "click",
+                trigger: "manual",
                 title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
                 content: "<button type='button' class='reject-btn btn btn-danger'>No</button>"
             });
+
+            $(".term").click(function() {
+                $(".term").not(this).popover("hide");
+                $(this).popover("show");
+            })
 
             $(".term").on("shown.bs.popover", function () {
                 $(".close").click(function() {
                     $(".term").popover("hide");
                 });
 
-                $(".reject-btn").not(".active").click(function() {
+                $(".reject-btn").click(function() {
                     var button = $(this);
                     $.post("reject", "").done(function(data) {
                         button.attr("disabled", "disabled");
@@ -78,21 +85,27 @@ $(function() {
             $(".selected").popover({
                 placement: "top",
                 html: true,
-                trigger: "click",
+                trigger: "manual",
                 title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
                 content: "<button type='button' class='approve-btn btn btn-success'>Yes</button>"
             });
+
+            $(".selected").click(function() {
+                $(".selected").not(this).popover("hide");
+                $(this).popover("show");
+            })
 
             $(".selected").on("shown.bs.popover", function () {
                 $(".close").click(function() {
                     $(".selected").popover("hide");
                 });
 
-                $(".approve-btn").not(".active").click(function() {
+                $(".approve-btn").click(function() {
                     var button = $(this);
                     $.post("approve", "").done(function(data) {
                         button.attr("disabled", "disabled");
                         window.setTimeout($(".selected").popover("hide"), 2000);
+                        $(remove)
                     });
                 });
             });
