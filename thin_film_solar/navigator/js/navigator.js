@@ -46,75 +46,102 @@ $(function() {
             $('#paginator-wrapper').empty();
         }
 
-        $(".term").popover({
-            placement: "top",
-            html: true,
-            trigger: "click",
-            title: "<button type='button' class='close' onclick='$(&quot;.term&quot;).popover(&quot;hide&quot;);'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
-            content: "<button type='button' class='approve-btn btn btn-success'>Yes</button> <button type='button' class='reject-btn btn btn-danger'>No</button>"
-        });
-
-        $('.term').on('shown.bs.popover', function () {
-            $(".approve-btn").not(".active").click(function() {
-                var button = $(this);
-                $.post("approve", "").done(function(data) {
-                    button.append("  &#x2713;").attr("disabled", "disabled");
-                });
-            });
-
-
-            $(".reject-btn").not(".active").click(function() {
-                var button = $(this);
-                $.post("reject", "").done(function(data) {
-                    button.append("  &#x2717;").attr("disabled", "disabled");
-                });
-            });
-        });
-    }
-
-    var load_facets = function(facets) {
-        if (!facets) {
-            $('#facets').empty();
-        } else {
-            if ($('#journal-facet-div').length == 0) {
-                $('#facets').append(
-                    '<div id="journal-facet-div">' +
-                    '<h4 class="sidebar-header">Top Journals</h4>' +
-                    '<ul id="journal-facet-list" class="list-group facet-list"></ul>' +
-                    '</div>'
-                    );
+        $("p").mouseup(function() {
+            selection = get_selected_text();
+            if(selection.length >= 3) {
+                var spn = "<span class='selected " + escape_selection(selection) + "' data-toggle='popover' tabindex='-1'>" + selection + "</span>"
+                $(this).html(replace_all(selection, spn, $(this).html()));
             }
 
-            $('#journal-facet-list').empty();
-            facets.journals.forEach(function (journal) {
-                var item = document.createElement('li');
-                $(item).addClass('list-group-item')
-                .text(journal.name)
-                .prepend('<span class="badge">' + journal.count + '</span>');
-                $(item).click(function() {
-                    if ($(item).hasClass('active')) {
-                        $(item).removeClass('active');
-                        $.ajax({
-                            url: '/scope/set-facet/journal?q=none&sort=' + get_sort_type() + '&limit=' + page_limit,
-                            type: 'PUT',
-                            dataType: 'json',
-                            success: function(data) {
-                                show_abstracts(data);
-                            }
-                        });
-                    } else {
-                        $('#journal-facet-list .list-group-item').removeClass('active');
-                        $(item).addClass('active');
-                        $.ajax({
-                            url: '/scope/set-facet/journal?q=' + journal.name + '&sort=' + get_sort_type() + '&limit=' + page_limit,
-                            type: 'PUT',
-                            dataType: 'json',
-                            success: function(data) {
-                                show_abstracts(data);
-                            }
-                        });
-                    }
+            $(".term").popover({
+                placement: "top",
+                html: true,
+                trigger: "click",
+                title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
+                content: "<button type='button' class='reject-btn btn btn-danger'>No</button>"
+            });
+
+            $(".term").on("shown.bs.popover", function () {
+                $(".close").click(function() {
+                    $(".term").popover("hide");
                 });
+
+                $(".reject-btn").not(".active").click(function() {
+                    var button = $(this);
+                    $.post("reject", "").done(function(data) {
+                        button.attr("disabled", "disabled");
+                        window.setTimeout($(".term").popover("hide"), 2000);
+                    });
+                });
+            });
+
+            $(".selected").popover({
+                placement: "top",
+                html: true,
+                trigger: "click",
+                title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
+                content: "<button type='button' class='approve-btn btn btn-success'>Yes</button>"
+            });
+
+            $(".selected").on("shown.bs.popover", function () {
+                $(".close").click(function() {
+                    $(".selected").popover("hide");
+                });
+
+                $(".approve-btn").not(".active").click(function() {
+                    var button = $(this);
+                    $.post("approve", "").done(function(data) {
+                        button.attr("disabled", "disabled");
+                        window.setTimeout($(".selected").popover("hide"), 2000);
+                    });
+                });
+            });
+        });
+}
+
+var load_facets = function(facets) {
+    if (!facets) {
+        $('#facets').empty();
+    } else {
+        if ($('#journal-facet-div').length == 0) {
+            $('#facets').append(
+                '<div id="journal-facet-div">' +
+                '<h4 class="sidebar-header">Top Journals</h4>' +
+                '<ul id="journal-facet-list" class="list-group facet-list"></ul>' +
+                '</div>'
+                );
+        }
+
+        $('#journal-facet-list').empty();
+        facets.journals.forEach(function (journal) {
+            var item = document.createElement('li');
+            $(item).addClass('list-group-item')
+            .text(journal.name)
+            .prepend('<span class="badge">' + journal.count + '</span>');
+            $(item).click(function() {
+                if ($(item).hasClass('active')) {
+                    $(item).removeClass('active');
+                    $.ajax({
+                        url: '/scope/set-facet/journal?q=none&sort=' + get_sort_type() + '&limit=' + page_limit,
+                        type: 'PUT',
+                        dataType: 'json',
+                        success: function(data) {
+                            show_abstracts(data);
+                        }
+                    });
+                } else {
+                    $('#journal-facet-list .list-group-item').removeClass('active');
+                    $(item).addClass('active');
+                    $.ajax({
+                        url: '/scope/set-facet/journal?q=' + journal.name + '&sort=' + get_sort_type() + '&limit=' + page_limit,
+                        type: 'PUT',
+                        dataType: 'json',
+                        success: function(data) {
+                            show_abstracts(data);
+                        }
+                    });
+                }
+            });
 $('#journal-facet-list').append(item);
 });
 }
@@ -170,6 +197,30 @@ var refine_scope = function(query) {
 
     $('#search-term-list').append(item);
 };
+
+var get_selected_text = function() {
+    if(window.getSelection){
+        return window.getSelection().toString();
+    }
+    else if(document.getSelection){
+        return document.getSelection();
+    }
+    else if(document.selection){
+        return document.selection.createRange().text;
+    }
+}
+
+function escape_regexp(string) {
+    return string.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+}
+
+function replace_all(find, replace, str) {
+    return str.replace(new RegExp(escape_regexp(find), 'g'), replace);
+}
+
+function escape_selection(string) {
+    return replace_all(" ", "-", string);
+}
 
 terms = new Bloodhound({
     datumTokenizer: function(d) { return Bloodhound.tokenizers.whitespace(d); },

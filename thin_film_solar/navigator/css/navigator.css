@@ -126,16 +126,10 @@ html {overflow-y: scroll;}
   background-color: yellowgreen;
 }
 
-.approve-btn {
+.approve-btn, .reject-btn {
   position:absolute;
-  left: 20px;
-  width: 60px;
-}
-
-.reject-btn {
-  position:absolute;
-  right: 20px;
-  width: 60px;
+  left: 5%;
+  width: 90%;
 }
 
 .popover-content {
@@ -151,6 +145,10 @@ html {overflow-y: scroll;}
   left: 5px;
   top: 5px;
   display: inline-block;
+}
+
+.selected {
+  background-color: yellowgreen;
 }
 
 .sentence:hover {

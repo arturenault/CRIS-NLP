@@ -51,5 +51,4 @@ function is_alpha_space_or_dash(str::String)
     end
     return true
 end
-
 end
