@@ -152,3 +152,7 @@ html {overflow-y: scroll;}
   top: 5px;
   display: inline-block;
 }
+
+.sentence:hover {
+  background-color: #EEF7FF;
+}

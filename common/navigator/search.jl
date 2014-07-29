@@ -170,7 +170,7 @@ function get_abstracts(scope::SearchScope,
         pub_year     = doc_metadata["pub_year"]
         start_page   = doc_metadata["start_page"]
         end_page     = doc_metadata["end_page"]
-        text         = highlight_terms(scope, doc_id, doc_terms)
+        text         = into_sentences(highlight_terms(scope, doc_id, doc_terms))
 
         write(result, delim)
         write(result, '"')
@@ -215,6 +215,11 @@ function highlight_terms(scope::SearchScope, doc_id::String, term_dict::Dict{ASC
         end
     end
     return paragraph
+end
+
+function into_sentences(paragraph::String)
+    paragraph = string("<span class='sentence'>", paragraph, "</span>")
+    replace(paragraph, ". ", ".</span> <span class='sentence'>")
 end
 
 function write_and_escape(buf::IOBuffer, str::String)
