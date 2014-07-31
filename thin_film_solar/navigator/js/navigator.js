@@ -49,22 +49,25 @@ $(function() {
         $("p").mouseup(function() {
             selection = get_selected_text();
             if(selection.length >= 3) {
-                var spn = "<span class='selected " + escape_selection(selection) + "' data-toggle='popover' tabindex='-1'>" + selection + "</span>"
+                var spn = "<span class='selected " + escape_spaces(selection) + "' data-toggle='popover'>" + selection + "</span>"
                 $(".term").popover("hide");
                 $(".selected").popover("hide");
                 $(this).html(replace_all(selection, spn, $(this).html()));
             }
 
-            $(".term").popover({
+            $("span .term").popover({
                 placement: "top",
                 html: true,
                 trigger: "manual",
+                container: ".term",
+                template: '<div class="popover" id="' + escape_spaces($(":focus").text()) + '" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>',
                 title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
                 content: "<button type='button' class='reject-btn btn btn-danger'>No</button>"
             });
 
             $(".term").click(function() {
-                $(".term").not(this).popover("hide");
+                window.currentTerm = $(this);
+                $(".term, .selected").not($(this)).popover("hide");
                 $(this).popover("show");
             })
 
@@ -74,11 +77,10 @@ $(function() {
                 });
 
                 $(".reject-btn").click(function() {
-                    var button = $(this);
-                    $.post("reject", "").done(function(data) {
-                        button.attr("disabled", "disabled");
-                        window.setTimeout($(".term").popover("hide"), 2000);
-                    });
+                    $(".term").popover("hide");
+                    var term = window.currentTerm.clone().children().remove().end().text();
+                    var sentence = $(this).parent().parent().parent().parent();
+                    window.currentTerm.replaceWith(term);
                 });
             });
 
@@ -86,12 +88,13 @@ $(function() {
                 placement: "top",
                 html: true,
                 trigger: "manual",
+                container: ".selected",
                 title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
                 content: "<button type='button' class='approve-btn btn btn-success'>Yes</button>"
             });
 
             $(".selected").click(function() {
-                $(".selected").not(this).popover("hide");
+                $(".selected, .term").not($(this)).popover("hide");
                 $(this).popover("show");
             })
 
@@ -101,12 +104,10 @@ $(function() {
                 });
 
                 $(".approve-btn").click(function() {
-                    var button = $(this);
-                    $.post("approve", "").done(function(data) {
-                        button.attr("disabled", "disabled");
-                        window.setTimeout($(".selected").popover("hide"), 2000);
-                        $(remove)
-                    });
+                    $(".selected").popover("hide");
+                    var span = $(this).parent().parent().parent()
+                    span.removeClass("selected");
+                    span.addClass("term");
                 });
             });
         });
@@ -231,8 +232,8 @@ function replace_all(find, replace, str) {
     return str.replace(new RegExp(escape_regexp(find), 'g'), replace);
 }
 
-function escape_selection(string) {
-    return replace_all(" ", "-", string);
+function escape_spaces(string) {
+    return replace_all(" ", "_", string);
 }
 
 terms = new Bloodhound({

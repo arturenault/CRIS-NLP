@@ -209,12 +209,16 @@ function highlight_terms(scope::SearchScope, doc_id::String, term_dict::Dict{ASC
     for term in terms
         try
             if contains(paragraph, term)
-                paragraph = replace(paragraph, term, "<span class=\"term\" tabindex=\"-1\" data-toggle=\"popover\" \">$(term)</span>")
+                paragraph = replace(paragraph, " $term ", " <span class=\"term $(escape_spaces(term))\" data-toggle=\"popover\">$term</span> ")
             end
         catch
         end
     end
     return paragraph
+end
+
+function escape_spaces(term::String)
+    replace(term, " ", "_");
 end
 
 function into_sentences(paragraph::String)
