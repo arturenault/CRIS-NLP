@@ -222,8 +222,14 @@ function escape_spaces(term::String)
 end
 
 function into_sentences(paragraph::String)
-    paragraph = string("<span class='sentence'>", paragraph, "</span>")
-    replace(paragraph, ". ", ".</span> <span class='sentence'>")
+    delimited = replace(paragraph, r"([.?!])\s*(?=[A-Z<])", delim)
+    sentences = split(delimited, "|")
+    paragraph = join(sentences, "</span> <span class=\"sentence\">")
+    paragraph = string("<span class=\"sentence\">", paragraph, "</span")
+end
+
+function delim(s::String)
+    return string(s, "|");
 end
 
 function write_and_escape(buf::IOBuffer, str::String)
