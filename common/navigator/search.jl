@@ -209,7 +209,7 @@ function highlight_terms(scope::SearchScope, doc_id::String, term_dict::Dict{ASC
     for term in terms
         try
             if contains(paragraph, term)
-                paragraph = replace(paragraph, " $term ", " <span class=\"term $(escape_spaces(term))\" data-toggle=\"popover\">$term</span> ")
+                paragraph = replace(paragraph, " $term ", " <span rel=\"popover\" class=\"term $(escape_spaces(term))\" data-toggle=\"popover\">$term</span> ")
             end
         catch
         end

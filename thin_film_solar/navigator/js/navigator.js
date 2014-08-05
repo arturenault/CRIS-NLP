@@ -19,10 +19,10 @@ $(function() {
         }
     });
 
-    var show_abstracts = function(data, currentPage) {
-        currentPage = typeof currentPage != 'undefined' ? currentPage : 1;
+var show_abstracts = function(data, currentPage) {
+    currentPage = typeof currentPage != 'undefined' ? currentPage : 1;
 
-        $('#abstract-view').empty();
+    $('#abstract-view').empty();
         data.abstracts.forEach(function(html) {
             $('#abstract-view').append(html);
         });
@@ -46,71 +46,7 @@ $(function() {
             $('#paginator-wrapper').empty();
         }
 
-        $("p").mouseup(function() {
-            selection = get_selected_text();
-            if(selection.length >= 3) {
-                var spn = "<span class='selected " + escape_spaces(selection) + "' data-toggle='popover'>" + selection + "</span>"
-                $(".term").popover("hide");
-                $(".selected").popover("hide");
-                $(this).html(replace_all(selection, spn, $(this).html()));
-            }
-
-            $("span .term").popover({
-                placement: "top",
-                html: true,
-                trigger: "manual",
-                container: ".term",
-                template: '<div class="popover" id="' + escape_spaces($(":focus").text()) + '" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>',
-                title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
-                content: "<button type='button' class='reject-btn btn btn-danger'>No</button>"
-            });
-
-            $(".term").click(function() {
-                window.currentTerm = $(this);
-                $(".term, .selected").not($(this)).popover("hide");
-                $(this).popover("show");
-            })
-
-            $(".term").on("shown.bs.popover", function () {
-                $(".close").click(function() {
-                    $(".term").popover("hide");
-                });
-
-                $(".reject-btn").click(function() {
-                    $(".term").popover("hide");
-                    var term = window.currentTerm.clone().children().remove().end().text();
-                    var sentence = $(this).parent().parent().parent().parent();
-                    window.currentTerm.replaceWith(term);
-                });
-            });
-
-            $(".selected").popover({
-                placement: "top",
-                html: true,
-                trigger: "manual",
-                container: ".selected",
-                title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
-                content: "<button type='button' class='approve-btn btn btn-success'>Yes</button>"
-            });
-
-            $(".selected").click(function() {
-                $(".selected, .term").not($(this)).popover("hide");
-                $(this).popover("show");
-            })
-
-            $(".selected").on("shown.bs.popover", function () {
-                $(".close").click(function() {
-                    $(".selected").popover("hide");
-                });
-
-                $(".approve-btn").click(function() {
-                    $(".selected").popover("hide");
-                    var span = $(this).parent().parent().parent()
-                    span.removeClass("selected");
-                    span.addClass("term");
-                });
-            });
-        });
+    $.getScript("annotator.js");
 }
 
 var load_facets = function(facets) {
@@ -211,30 +147,6 @@ var refine_scope = function(query) {
 
     $('#search-term-list').append(item);
 };
-
-var get_selected_text = function() {
-    if(window.getSelection){
-        return window.getSelection().toString();
-    }
-    else if(document.getSelection){
-        return document.getSelection();
-    }
-    else if(document.selection){
-        return document.selection.createRange().text;
-    }
-}
-
-function escape_regexp(string) {
-    return string.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
-}
-
-function replace_all(find, replace, str) {
-    return str.replace(new RegExp(escape_regexp(find), 'g'), replace);
-}
-
-function escape_spaces(string) {
-    return replace_all(" ", "_", string);
-}
 
 terms = new Bloodhound({
     datumTokenizer: function(d) { return Bloodhound.tokenizers.whitespace(d); },
