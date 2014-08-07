@@ -224,8 +224,8 @@ end
 function into_sentences(paragraph::String)
     delimited = replace(paragraph, r"([.?!])\s*(?=[A-Z<])", delim)
     sentences = split(delimited, "|")
-    paragraph = join(sentences, "</span> <span class=\"sentence\">")
-    paragraph = string("<span class=\"sentence\">", paragraph, "</span")
+    paragraph = join(sentences, "</span> <span class=\"sentence\" rel=\"popover\">")
+    paragraph = string("<span class=\"sentence\" rel=\"popover\">", paragraph, "</span")
 end
 
 function delim(s::String)

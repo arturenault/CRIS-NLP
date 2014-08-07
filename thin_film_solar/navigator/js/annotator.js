@@ -35,19 +35,25 @@ $(".sentence").mouseup(function() {
     }
 });
 
+$("p").popover({
+    selector: ".sentence",
+    container: ".sentence",
+    placement: "right",
+    trigger: "hover",
+    title: "send",
+    delay: {hide: 2000},
+    template: "<div class='popover' role='tooltip'><div class='arrow'></div><button type='button' class='btn btn-default'>Send</div>"
+});
+
 $(".term").popover({
     selector: "[rel=popover]",
     placement: "top",
     html: true,
     trigger: "manual",
     container: ".term",
-    template: '<div class="popover" id="' + escape_spaces($(":focus").text()) + '" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>',
+    template: '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>',
     title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
     content: "<button type='button' class='reject-btn btn btn-danger'>No</button>"
-});
-
-$("body").on("DOMNodeInserted", ".selected",  function() {
-
 });
 
 $(".term").click(function() {
