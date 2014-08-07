@@ -76,7 +76,7 @@ function handle_clauses_in_title(input::TextAndPos,
         deleteat!(input.text, 1)
         deleteat!(input.text, length(input.text))
         if possible_acronym(input.text)
-            add!(state.possible_acronym_log, ASCIIString(input.text.data))
+            push!(state.possible_acronym_log, ASCIIString(input.text.data))
         end
         offer(output, input)
     else
@@ -186,7 +186,7 @@ function handle_clauses_in_abstract(input::TextAndPos,
         deleteat!(input.text, 1)
         deleteat!(input.text, length(input.text))
         if possible_acronym(input.text)
-            add!(state.possible_acronym_log, ASCIIString(input.text.data))
+            push!(state.possible_acronym_log, ASCIIString(input.text.data))
         end
         offer(output, input)
     else

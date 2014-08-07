@@ -117,7 +117,7 @@ function count_acronym!(ac_phrase_counts::Dict{ASCIIString, StringCounter},
         if !haskey(ac_phrase_counts, ac)
             ac_phrase_counts[ac] = counter(ASCIIString)
         end
-        add!(ac_phrase_counts[ac], ac_phrase)
+        push!(ac_phrase_counts[ac], ac_phrase)
     end
 end
 
@@ -287,11 +287,11 @@ function count_new_grams!(new_grams::StringSet,
     for gram in new_grams
         len = count(c -> c == ' ', gram)
         if len == 1
-            add!(unigram_counts, gram)
+            push!(unigram_counts, gram)
         elseif len == 2
-            add!(bigram_counts, gram)
+            push!(bigram_counts, gram)
         else
-            add!(trigram_counts, gram)
+            push!(trigram_counts, gram)
         end
     end
     empty!(new_grams)

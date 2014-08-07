@@ -173,19 +173,19 @@ function flush_counts!(doc_grams::Dict{ASCIIString, StringSet},
 
     for gram in unigrams_seen
         push!(this_docs_grams, gram)
-        add!(unigram_counts, gram)
+        push!(unigram_counts, gram)
     end
     empty!(unigrams_seen)
 
     for gram in bigrams_seen
         push!(this_docs_grams, gram)
-        add!(bigram_counts, gram)
+        push!(bigram_counts, gram)
     end
     empty!(bigrams_seen)
 
     for gram in trigrams_seen
         push!(this_docs_grams, gram)
-        add!(trigram_counts, gram)
+        push!(trigram_counts, gram)
     end
     empty!(trigrams_seen)
 end
@@ -284,11 +284,11 @@ function recount_ngrams!(doc_grams::Dict{ASCIIString, StringSet},
             end
         end
 
-        for gram in new_unigrams; add!(unigram_counts, gram); end
+        for gram in new_unigrams; push!(unigram_counts, gram); end
         empty!(new_unigrams)
-        for gram in new_bigrams;  add!(bigram_counts, gram);  end
+        for gram in new_bigrams;  push!(bigram_counts, gram);  end
         empty!(new_bigrams)
-        for gram in new_trigrams; add!(trigram_counts, gram); end
+        for gram in new_trigrams; push!(trigram_counts, gram); end
         empty!(new_trigrams)
     end
 
@@ -453,7 +453,7 @@ function count_terms(doc_terms::Dict{ASCIIString, StringSet})
     term_counts = counter(ASCIIString)
     for (doc_id, terms) in doc_terms
         for term in terms
-            add!(term_counts, term)
+            push!(term_counts, term)
         end
     end
     term_counts
