@@ -151,11 +151,7 @@ html {overflow-y: scroll;}
   background-color: yellowgreen;
 }
 
-.sentence {
-  transition: background-color 0.5s ease-out 1s;
-}
 
 .sentence:hover {
   background-color: #EEF7FF;
-  transition: background-color 0s ease-out 0s;
 }

@@ -171,10 +171,9 @@ function get_abstracts(scope::SearchScope,
         start_page   = doc_metadata["start_page"]
         end_page     = doc_metadata["end_page"]
         text         = into_sentences(highlight_terms(scope, doc_id, doc_terms))
-
         write(result, delim)
         write(result, '"')
-        write(result, "<tr><td>")
+        write_and_escape(result, "<tr><td id=\"$doc_id\">")
         write_and_escape(result, "<a class=\"article-title\"")
         write_and_escape(result,    "href=\"https://www.google.com/scholar?q=$title\"")
         write_and_escape(result,    "target=\"_blank\">")
@@ -186,7 +185,7 @@ function get_abstracts(scope::SearchScope,
         write_and_escape(result, "$(pub_year): ")
         write_and_escape(result, "$start_page-$end_page")
         write(result, "</h5>")
-        write_and_escape(result, "<p>$(text))</p>")
+        write_and_escape(result, "<p>$text</p>")
         write(result, "</td></tr>")
         write(result, '\"')
         delim = ","
