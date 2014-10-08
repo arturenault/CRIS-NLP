@@ -208,7 +208,7 @@ function highlight_terms(scope::SearchScope, doc_id::String, term_dict::Dict{ASC
     for term in terms
         try
             if contains(paragraph, term)
-                paragraph = replace(paragraph, " $term ", " <span rel=\"popover\" class=\"term $(escape_spaces(term))\" data-toggle=\"popover\">$term</span> ")
+                paragraph = replace(paragraph, Regex("([ \"'\(])$term([ ,.!?\";:])"), wrap_in_span)
             end
         catch
         end
@@ -216,8 +216,17 @@ function highlight_terms(scope::SearchScope, doc_id::String, term_dict::Dict{ASC
     return paragraph
 end
 
-function escape_spaces(term::String)
-    replace(term, " ", "_");
+function wrap_in_span(term::String)
+    term = replace(term, r"[ \"'\(]", open_span, 1)
+    term = replace(term, r"[ ,.!?\";:]$", close_span)
+end
+
+function open_span(mark::String)
+    return string(mark, "<span rel=\"popover\" class=\"term\" data-toggle=\"popover\">")
+end
+
+function close_span(mark::String)
+    return string("</span>", mark)
 end
 
 function into_sentences(paragraph::String)
