@@ -36,7 +36,6 @@ $(".sentence").mouseup(function(e) {
         var selection = get_selected_text();
         if(selection.length >= 3) {
             var spn = "<span class='selected " +
-            escape_spaces(selection) +
             "' rel='popover' data-toggle='popover'>" +
             selection + "</span>"
             $(".term").popover("hide");
@@ -63,18 +62,32 @@ $("body").on("click", ".close", function () {
     $(".popover").remove();
 });
 
-$("body").on("click", ".approve-btn", function() {
+$(".sentence").on("click", ".approve-btn", function() {
     $(".selected").popover("hide");
-    var span = $(this).parent().parent().parent().parent().children(".selected");
-    span.removeClass("selected");
-    span.addClass("term");
-    $(".popover").remove();
+    var sentence = $(this).parent().parent().parent().parent();
+    var span = sentence.children(".selected");
+    var label = $(this).parent().find("option:selected").text()
+    span.popover("destroy");
+    span.removeClass("selected")
+    .addClass("term")
+    .attr("label", label);
+    sentence.find(".term").popover({
+        selector: "[rel=popover]",
+        placement: "top",
+        html: true,
+        trigger: "manual",
+        container: ".term",
+        template: term_popover_template,
+        title: term_popover_title,
+        content: term_popover_text
+    });
 });
 
 $("body").on("change", ".label-options", function(e){
     if (e.target === this) {
+        $(this).nextAll(".label-options").remove();
         $(this).after("<select class='label-options form-control'>"+
-            "<option>" + $(this).find("option:selected").text() + "</option>"+
+            "<option>" + $(this).find("option:selected").last().text() + "</option>"+
             "<option>2</option>"+
             "<option>3</option>"+
             "<option>4</option>"+
@@ -92,7 +105,7 @@ $(".sentence").popover({
     template: sentence_popover_template
 });
 
-$(".sentence").not(".term, .selected, .popover").click(function() {
+$(".sentence").not(".term, .selected").click(function(e) {
     window.currentSentence = event.target;
     $(window.currentSentence).popover("show");
 
@@ -104,7 +117,7 @@ $(".sentence").not(".term, .selected, .popover").click(function() {
     });
 });
 
-$("body").on("click", ".submit", function() {
+$(".sentence").on("click", ".submit", function(e) {
     var sentence = $(window.currentSentence);
     var json = sentence.into_json();
     var obj = JSON.parse(json);
@@ -124,7 +137,7 @@ $(".term").popover({
     content: term_popover_text
 });
 
-$(".term").click(function(e) {
+$(".sentence").on("click", ".term", function(e) {
     if (e.target === this) {
         window.currentTerm = $(this);
         $(".term, .selected").not($(this)).popover("hide");
@@ -158,10 +171,6 @@ function escape_regexp(string) {
 
 function replace_all(find, replace, str) {
     return str.replace(new RegExp(escape_regexp(find), 'g'), replace);
-}
-
-function escape_spaces(string) {
-    return replace_all(" ", "_", string);
 }
 
 jQuery.fn.justtext = function() {
