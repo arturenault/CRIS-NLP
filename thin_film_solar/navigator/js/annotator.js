@@ -1,37 +1,84 @@
-$(".sentence").mouseup(function() {
-    selection = get_selected_text();
-    if(selection.length >= 3) {
-        var spn = "<span class='selected " + escape_spaces(selection) + "' rel='popover' data-toggle='popover'>" + selection + "</span>"
-        $(".term").popover("hide");
-        $(".selected").popover("hide");
-        $(this).html(replace_all(selection, spn, $(this).html()));
-        $(this).find(".selected").popover({
-            selector: "[rel=popover]",
-            placement: "top",
-            html: true,
-            trigger: "manual",
-            container: ".selected",
-            title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
-            content: "<button type='button' class='approve-btn btn btn-success'>Yes</button>"
-        }).popover("show");
+var term_popover_template = '<div class="popover" role="tooltip"><div class="arrow"></div>'+
+'<h3 class="popover-title"></h3><div class="popover-content"></div></div>'
 
-        $(".selected").on("shown.bs.popover", function () {
-            $(".close").click(function() {
-                var spans = $(this).parent().parent().parent().parent().children(".selected");
-                var term = spans.first().justtext();
-                spans.replaceWith(term);
-                $(".selected").popover("hide");
-                $(".popover").remove();
-            });
+var term_popover_title = "<button type='button' class='close'>&times;</button>" +
+"<span class='popover-title-text'>Label this term</span>";
 
-            $(".approve-btn").click(function() {
-                $(".selected").popover("hide");
-                var span = $(this).parent().parent().parent().parent().children(".selected");
-                span.removeClass("selected");
-                span.addClass("term");
-                $(".popover").remove();
+var term_popover_text = "<select class='label-options form-control'>"+
+"<option>1</option>"+
+"<option>2</option>"+
+"<option>3</option>"+
+"<option>4</option>"+
+"<option>5</option>"+
+"</select>"+
+"<button type='button' class='reject-btn btn btn-danger'>Not a term?</button>"
+
+var selected_popover_title = "<button type='button' class='close'>&times;</button>"+
+"<span class='popover-title-text'>Should this be a term?</span>";
+
+var selected_popover_text = "<select class='label-options form-control'>"+
+"<option>1</option>"+
+"<option>2</option>"+
+"<option>3</option>"+
+"<option>4</option>"+
+"<option>5</option>"+
+"</select>"+
+"<button type='button' class='approve-btn btn btn-success'>Yes</button>";
+
+var sentence_popover_template = "<div class='popover' role='tooltip'><div class='arrow'></div>" +
+"<button type='button' class='btn submit btn-default'>Submit</div>"
+
+$(".sentence").mouseup(function(e) {
+    if( e.target === this) {
+        var spans = $(this).children(".selected");
+        var term = spans.first().justtext();
+        spans.replaceWith(term);
+        var selection = get_selected_text();
+        if(selection.length >= 3) {
+            var spn = "<span class='selected " +
+            escape_spaces(selection) +
+            "' rel='popover' data-toggle='popover'>" +
+            selection + "</span>"
+            $(".term").popover("hide");
+            $(".selected").popover("hide");
+            $(this).html(replace_all(selection, spn, $(this).html()));
+            $(this).find(".selected").popover({
+                selector: "[rel=popover]",
+                placement: "top",
+                html: true,
+                trigger: "manual",
+                container: ".selected",
+                title: selected_popover_title,
+                content: selected_popover_text
+            }).popover("show");
+
+            $(".selected").on("shown.bs.popover", function () {
+                $(".close").click(function() {
+                    $(".selected").popover("hide");
+                    $(".popover").remove();
+                });
+
+                $(".approve-btn").click(function() {
+                    $(".selected").popover("hide");
+                    var span = $(this).parent().parent().parent().parent().children(".selected");
+                    span.removeClass("selected");
+                    span.addClass("term");
+                    $(".popover").remove();
+                }); 
             });
-        });
+        }
+    }
+});
+
+$("body").on("change", ".label-options", function(e){
+    if (e.target === this) {
+        $(this).after("<select class='label-options form-control'>"+
+            "<option>" + $(this).find("option:selected").text() + "</option>"+
+            "<option>2</option>"+
+            "<option>3</option>"+
+            "<option>4</option>"+
+            "<option>5</option>"+
+            "</select>");
     }
 });
 
@@ -41,11 +88,10 @@ $(".sentence").popover({
     trigger: "manual",
     title: "send",
     delay: {hide: 2000},
-    template: "<div class='popover' role='tooltip'><div class='arrow'></div><button type='button' class='btn submit btn-default'>Submit</div>"
+    template: sentence_popover_template
 });
 
-$(".sentence").not(".term", ".selected", ".popover").click(function() {
-    $(".popover").remove();
+$(".sentence").not(".term, .selected, .popover").click(function() {
     window.currentSentence = event.target;
     $(window.currentSentence).popover("show");
 
@@ -61,7 +107,6 @@ $(".sentence").not(".term", ".selected", ".popover").click(function() {
         var json = sentence.into_json();
         var obj = JSON.parse(json);
         $.post("submit", obj, function(response) {
-            console.log('it works!');
         });
     });
 });
@@ -72,16 +117,18 @@ $(".term").popover({
     html: true,
     trigger: "manual",
     container: ".term",
-    template: '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>',
-    title: "<button type='button' class='close'>&times;</button><span class='popover-title-text'>Should this be a term?</span>",
-    content: "<button type='button' class='reject-btn btn btn-danger'>No</button>"
+    template: term_popover_template,
+    title: term_popover_title,
+    content: term_popover_text
 });
 
-$(".term").click(function() {
-    window.currentTerm = $(this);
-    $(".term, .selected").not($(this)).popover("hide");
-    $(".popover").remove();
-    $(this).popover("show");
+$(".term").click(function(e) {
+    if (e.target === this) {
+        window.currentTerm = $(this);
+        $(".term, .selected").not($(this)).popover("hide");
+        $(".popover").remove();
+        $(this).popover("show");
+    }
 })
 
 $(".term").on("shown.bs.popover", function () {
@@ -95,6 +142,16 @@ $(".term").on("shown.bs.popover", function () {
         window.currentTerm.replaceWith(term);
         $(".term").popover("hide");
         $(".popover").remove();
+    });
+
+    $(".label-options").change(function(e){
+        $(this).after("<select class='label-options form-control'>"+
+            "<option>" + $(this).find("option:selected").text() + "</option>"+
+            "<option>2</option>"+
+            "<option>3</option>"+
+            "<option>4</option>"+
+            "<option>5</option>"+
+            "</select>");
     });
 });
 
@@ -136,13 +193,16 @@ jQuery.fn.into_json = function() {
     var id = $(this).parent().parent().attr("id");
     var index = $(this).index();
 
-    var output = "{ \"sentence\": \"" + text + "\", \"doc_id\": \"" + id + "\", \"index\": " + index + ", \"terms\": [";
+    var output = "{ \"sentence\": \"" + text +
+    "\", \"doc_id\": \"" + id + "\", \"index\": " +
+    index + ", \"terms\": [";
     $(this).children("span").each(function() {
         var term = $(this).justtext();
         var index = textArray.indexOf(term.split(" ")[0]);
         var length = term.split(" ").length;
 
-        output += "{\"term\": \"" + term + "\", \"index\": " + index + ", \"length\": " + length + "}";
+        output += "{\"term\": \"" + term + "\", \"index\": " +
+        index + ", \"length\": " + length + "}";
         if (!$(this).is(":nth-last-child(2)")) {
             output += ",";
         }
