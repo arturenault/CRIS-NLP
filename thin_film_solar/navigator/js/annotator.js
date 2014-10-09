@@ -30,7 +30,7 @@ var sentence_popover_template = "<div class='popover' role='tooltip'><div class=
 
 $(".sentence").mouseup(function(e) {
     if( e.target === this) {
-        var spans = $(this).children(".selected");
+        var spans = $(".selected");
         var term = spans.first().justtext();
         spans.replaceWith(term);
         var selection = get_selected_text();
@@ -51,23 +51,24 @@ $(".sentence").mouseup(function(e) {
                 title: selected_popover_title,
                 content: selected_popover_text
             }).popover("show");
-
-            $(".selected").on("shown.bs.popover", function () {
-                $(".close").click(function() {
-                    $(".selected").popover("hide");
-                    $(".popover").remove();
-                });
-
-                $(".approve-btn").click(function() {
-                    $(".selected").popover("hide");
-                    var span = $(this).parent().parent().parent().parent().children(".selected");
-                    span.removeClass("selected");
-                    span.addClass("term");
-                    $(".popover").remove();
-                }); 
-            });
         }
     }
+});
+
+$("body").on("click", ".close", function () {
+    var spans = $(".selected");
+    var term = spans.first().justtext();
+    spans.replaceWith(term);
+    $(".selected").popover("hide");
+    $(".popover").remove();
+});
+
+$("body").on("click", ".approve-btn", function() {
+    $(".selected").popover("hide");
+    var span = $(this).parent().parent().parent().parent().children(".selected");
+    span.removeClass("selected");
+    span.addClass("term");
+    $(".popover").remove();
 });
 
 $("body").on("change", ".label-options", function(e){
@@ -101,13 +102,14 @@ $(".sentence").not(".term, .selected, .popover").click(function() {
             $(".sentence").children(".popover").remove();
         }, 2000);
     });
+});
 
-    $(".submit").click(function() {
-        var sentence = $(window.currentSentence);
-        var json = sentence.into_json();
-        var obj = JSON.parse(json);
-        $.post("submit", obj, function(response) {
-        });
+$("body").on("click", ".submit", function() {
+    var sentence = $(window.currentSentence);
+    var json = sentence.into_json();
+    var obj = JSON.parse(json);
+    $.post("submit", obj, function(response) {
+        console.log(response);
     });
 });
 
@@ -129,31 +131,14 @@ $(".term").click(function(e) {
         $(".popover").remove();
         $(this).popover("show");
     }
-})
-
-$(".term").on("shown.bs.popover", function () {
-    $(".close").click(function() {
-        $(".term").popover("hide");
-        $(".popover").remove();
-    });
-
-    $(".reject-btn").click(function() {
-        var term = window.currentTerm.justtext();
-        window.currentTerm.replaceWith(term);
-        $(".term").popover("hide");
-        $(".popover").remove();
-    });
-
-    $(".label-options").change(function(e){
-        $(this).after("<select class='label-options form-control'>"+
-            "<option>" + $(this).find("option:selected").text() + "</option>"+
-            "<option>2</option>"+
-            "<option>3</option>"+
-            "<option>4</option>"+
-            "<option>5</option>"+
-            "</select>");
-    });
 });
+
+$("body").on("click", ".reject-btn", function() {
+    var term = window.currentTerm.justtext();
+    window.currentTerm.replaceWith(term);
+    $(".term").popover("hide");
+    $(".popover").remove();
+})
 
 function get_selected_text() {
     if(window.getSelection){
