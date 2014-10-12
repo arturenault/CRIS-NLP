@@ -54,7 +54,7 @@ $(".sentence").mouseup(function(e) {
     }
 });
 
-$("body").on("click", ".close", function () {
+$("body").on("click", ".selected .close", function () {
     var spans = $(".selected");
     var term = spans.first().justtext();
     spans.replaceWith(term);
@@ -62,15 +62,23 @@ $("body").on("click", ".close", function () {
     $(".popover").remove();
 });
 
+$("body").on("click", ".term .close", function () {
+    var span = $(this).parent().parent().parent();
+    var label = $(this).parent().parent().find("option:selected").last().text();
+    span.attr("label", label)
+        .popover("hide");
+    $(".popover").remove();
+});
+
 $(".sentence").on("click", ".approve-btn", function() {
     $(".selected").popover("hide");
     var sentence = $(this).parent().parent().parent().parent();
     var span = sentence.children(".selected");
-    var label = $(this).parent().find("option:selected").text()
-    span.popover("destroy");
-    span.removeClass("selected")
-    .addClass("term")
-    .attr("label", label);
+    var label = $(this).parent().find("option:selected").last().text();
+    span.popover("destroy")
+        .removeClass("selected")
+        .addClass("term")
+        .attr("label", label);
     sentence.find(".term").popover({
         selector: "[rel=popover]",
         placement: "top",
@@ -117,11 +125,11 @@ $(".sentence").not(".term, .selected").click(function(e) {
     });
 });
 
-$(".sentence").on("click", ".submit", function(e) {
-    var sentence = $(window.currentSentence);
+$("body").on("click", ".submit", function(e) {
+    var sentence = $(this).parent().parent();
+    $(".popover").remove();
     var json = sentence.into_json();
-    var obj = JSON.parse(json);
-    $.post("submit", obj, function(response) {
+    $.post("submit", json, function(response) {
         console.log(response);
     });
 });
@@ -194,9 +202,10 @@ jQuery.fn.into_json = function() {
         var term = $(this).justtext();
         var index = textArray.indexOf(term.split(" ")[0]);
         var length = term.split(" ").length;
+        var label = $(this).attr("label");
 
         output += "{\"term\": \"" + term + "\", \"index\": " +
-        index + ", \"length\": " + length + "}";
+        index + ", \"length\": " + length + ",\"label\": \"" + label + "\"}";
         if (!$(this).is(":nth-last-child(2)")) {
             output += ",";
         }
