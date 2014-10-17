@@ -1,9 +1,13 @@
 module Serialization
+append!(LOAD_PATH, ["../pipeline"])
 
 require("string_utils.jl")
+require("term_extraction_types.jl")
 
 using DataStructures
 using StringUtils
+using TermExtractionTypes
+
 
 export store,
        load_string_to_string_map,
@@ -18,6 +22,20 @@ function store(path::String, data::Dict{ASCIIString, ASCIIString})
         end
     end
 end
+
+function store(path::String, data::Array{Sentence,1})
+      open(path, "w") do f
+          for (s) in data
+              term_str = ""
+              num_str = ""
+              for (t) in s.terms
+                  term_str = string(term_str,"|",t.term)
+                  num_str =  string(num_str, "|",t.source_range)
+              end
+              write(f, string(s.doc_id,"\t",s.idx,"\t",term_str,"\t", num_str,"\n"))
+          end
+      end
+ end
 
 function store{T <: Number}(path::String, data::Accumulator{ASCIIString, T})
     store(path, data.map)
