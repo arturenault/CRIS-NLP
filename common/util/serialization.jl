@@ -23,17 +23,40 @@ function store(path::String, data::Dict{ASCIIString, ASCIIString})
     end
 end
 
+
+
+
 function store(path::String, data::Array{Sentence,1})
-      open(path, "w") do f
+    wrote_title = false
+    term_str = ""
+    num_str = ""
+    curr_id = data[1].doc_id
+
+    open(path, "w") do f
           for (s) in data
-              term_str = ""
-              num_str = ""
-              for (t) in s.terms
-                  term_str = string(term_str,"|",t.term)
-                  num_str =  string(num_str, "|",t.source_range)
+              if s.doc_id == curr_id
+                  if !wrote_title
+                      write(f,string(curr_id,"\t","0","\t",term_str,"\t",num_str,"\n"))
+                      wrote_title = true; # this will be true on the next loop
+                      term_str = ""
+                      num_str = ""
+                  end
+               else
+                    # write the last sentence
+                write(f,string(curr_id,"\t","1","\t",term_str,"\t",num_str,"\n"))
+                      curr_id = s.doc_id;
+                      term_str = ""
+                      num_str = ""
+                      wrote_title = false; # false for next document
               end
-              write(f, string(s.doc_id,"\t",s.idx,"\t",term_str,"\t", num_str,"\n"))
+
+              for (t) in s.terms
+                   term_str = string(term_str,"|",t.term)
+                   num_str =  string(num_str, "|",t.source_range)
+              end
+
           end
+
       end
  end
 
