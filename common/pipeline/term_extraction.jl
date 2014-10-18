@@ -26,7 +26,7 @@ const common_words_25k = StringSet(
 function extract_terms(texts_path::String, possible_acronyms_path::String,
                        collocation_prior::Int, npmi_threshold::Float64)
     println("Reading texts")
-    
+
     (sentences, doc_grams, total_num_grams, unigram_counts, bigram_counts, trigram_counts) = load_and_count(texts_path)
 
     println("Processing acronyms")
@@ -34,7 +34,7 @@ function extract_terms(texts_path::String, possible_acronyms_path::String,
                                              unigram_counts, bigram_counts, trigram_counts)
 
     println("Selecting terms")
-    
+
     split_unigrams    = process_hyphenated_unigrams!(unigram_counts, bigram_counts, trigram_counts)
     depluralized_unigrams = process_plural_unigrams!(unigram_counts, bigram_counts, trigram_counts)
     recount_ngrams!(doc_grams,
@@ -50,7 +50,7 @@ function extract_terms(texts_path::String, possible_acronyms_path::String,
                        npmi_threshold)
 
     println("Locating terms in sentences")
-    
+
     doc_terms = note_term_locations!(sentences, terms,
                                      split_unigrams, depluralized_unigrams, ac_phrase)
     term_counts = count_terms(doc_terms)
@@ -58,7 +58,7 @@ function extract_terms(texts_path::String, possible_acronyms_path::String,
     println("Filtering overlapping terms")
     filter_covered_terms!(sentences, doc_terms, term_counts)
 
-    doc_terms, term_counts, ac_phrase, phrase_ac
+    doc_terms, term_counts, ac_phrase, phrase_ac, sentences
 end
 
 function load_and_count(path::String)
@@ -111,13 +111,13 @@ function read_words(text::SubString{ASCIIString},
                     unigrams_seen::StringSet,
                     bigrams_seen::StringSet,
                     trigrams_seen::StringSet)
-    
+
     word_objects = Word[]
-    
+
     two_ago = null_word
     one_ago = null_word
     cur_word = null_word
-    
+
     two_ago_lower = false
     one_ago_lower = false
     cur_word_lower = false
@@ -216,7 +216,7 @@ end
 function process_hyphenated_unigrams!(unigram_counts::StringCounter,
                                       bigram_counts::StringCounter,
                                       trigram_counts::StringCounter)
-    
+
     split_unigrams = StringSet()
     for (w, unigram_count) in unigram_counts
         dash_idx = search(w, '-')
@@ -360,7 +360,7 @@ function note_term_locations!(sentences::Vector{Sentence},
                               split_unigrams::StringSet,
                               depluralized_unigrams::StringSet,
                               ac_phrase::StringMap)
-    
+
     doc_terms = Dict{ASCIIString, StringSet}()
     for sentence in sentences
         if !haskey(doc_terms, sentence.doc_id)
@@ -469,7 +469,7 @@ function filter_covered_terms!(sentences::Vector{Sentence},
     # e.g. "X Y Z" may cover "X", "Y", "Z", "X Y", and/or "Y Z"
     for (term, count) in collect(term_counts)
         words = split(term)
-        
+
         if length(words) >= 2
             for word in words
                 w = term[word.offset+1:word.offset+word.endof]

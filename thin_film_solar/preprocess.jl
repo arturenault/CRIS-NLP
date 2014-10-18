@@ -21,8 +21,8 @@ using CommonTextTransforms
 using PreprocessingRules
 using ChemicalPreprocessingRules
 
-const titles    = load_string_to_string_map("data/thin_film_titles.txt", UTF8String)
-const abstracts = load_string_to_string_map("data/thin_film_abstracts.txt", UTF8String)
+const titles    = load_string_to_string_map("./data/thin_film_titles.txt", UTF8String)
+const abstracts = load_string_to_string_map("./data/thin_film_abstracts.txt", UTF8String)
 const possible_acronym_log = counter(ASCIIString)
 
 import CommonTextTransforms.filter_stopwords,
@@ -133,6 +133,7 @@ function main()
 
         process!(abstract_pipeline, abstracts[doc_id], base_sentence_idx=1)
         abstract_result = result!(abstract_pipeline)
+
         write_words_and_pos(output, doc_id, abstract_result)
 
         doc_count += 1
