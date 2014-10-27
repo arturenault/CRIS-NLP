@@ -1,19 +1,22 @@
 module Serialization
-append!(LOAD_PATH, ["../pipeline"])
+#append!(LOAD_PATH, ["../pipeline"])
 
 require("string_utils.jl")
-require("term_extraction_types.jl")
+require("../pipeline/term_extraction_types.jl")
 
 using DataStructures
 using StringUtils
 using TermExtractionTypes
 
+import Base.range
 
 export store,
        load_string_to_string_map,
        load_string_to_int_map,
        load_string_to_set_of_strings_map,
-       load_article_metadata
+       load_article_metadata,
+       load_terms,
+       load_term_locations
 
 function store(path::String, data::Dict{ASCIIString, ASCIIString})
     open(path, "w") do f
@@ -22,9 +25,6 @@ function store(path::String, data::Dict{ASCIIString, ASCIIString})
         end
     end
 end
-
-
-
 
 function store(path::String, data::Array{Sentence,1})
     wrote_title = false
@@ -113,6 +113,31 @@ function load_string_to_set_of_strings_map(path::String; element_delim=',')
     result
 end
 
+function load_term_locations(path::String)
+  data = readdlm(path, '\t', ASCIIString)
+  abstract_locs = Dict{ASCIIString, Set{ASCIIString}}()
+  title_locs = Dict{ASCIIString, Set{ASCIIString}}()
+  for i=1:size(data,1)
+    if data[i,2] == "1"
+      abstract_locs[data[i,1]] = Set(map(sstr -> sstr.string[sstr.offset+1:sstr.offset+sstr.endof], split(strip(data[i,4], '|'), "|")))
+    else
+      title_locs = Set(map(sstr -> sstr.string[sstr.offset+1:sstr.offset+sstr.endof], split(strip(data[i,4], '|'), "|")))
+    end
+  end
+  return abstract_locs, title_locs
+end
+
+function load_terms(path::String)
+  data = readdlm(path, '\t', ASCIIString)
+  result = Dict{ASCIIString, Set{ASCIIString}}()
+  for i=1:size(data,1)
+    if data[i,2] == "1"
+      result[data[i,1]] = Set(map(sstr -> sstr.string[sstr.offset+1:sstr.offset+sstr.endof], split(strip(data[i,3], '|'), "|")))
+    end
+  end
+  return result
+end
+
 function load_article_metadata(path::String)
     data = readdlm(path, '\t', UTF8String)
     result = Dict{ASCIIString, Dict{ASCIIString, ASCIIString}}()
@@ -130,4 +155,12 @@ function load_article_metadata(path::String)
     result
 end
 
+function range(s::String)
+  array = split(s, ":")
+  if size(array, 1) > 1
+    return range(int(array[1]), int(array[2]))
+  else
+    return range(0,0)
+  end
+end
 end
