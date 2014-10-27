@@ -121,7 +121,7 @@ function load_term_locations(path::String)
     if data[i,2] == "1"
       abstract_locs[data[i,1]] = Set(map(sstr -> sstr.string[sstr.offset+1:sstr.offset+sstr.endof], split(strip(data[i,4], '|'), "|")))
     else
-      title_locs = Set(map(sstr -> sstr.string[sstr.offset+1:sstr.offset+sstr.endof], split(strip(data[i,4], '|'), "|")))
+      title_locs[data[i,1]] = Set(map(sstr -> sstr.string[sstr.offset+1:sstr.offset+sstr.endof], split(strip(data[i,4], '|'), "|")))
     end
   end
   return abstract_locs, title_locs

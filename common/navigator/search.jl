@@ -17,7 +17,7 @@ export SearchScope,
 
 type SearchScope
     search_terms::Set{ASCIIString}
-    term_words::Dict{ASCIIString, Set{ASCIIString}}
+    doc_terms::Dict{ASCIIString, Set{ASCIIString}}
     term_counts::Accumulator{ASCIIString, Int}
     facets::Dict{ASCIIString, Any}
     abstracts::Dict{ASCIIString, ASCIIString}
@@ -28,10 +28,10 @@ end
 function initialize_scope!(scope::SearchScope,
                            abstracts::Dict{ASCIIString, ASCIIString},
                            metadata::Dict{ASCIIString, Dict{ASCIIString, ASCIIString}},
-                           term_words::Dict{ASCIIString, Set{ASCIIString}},
+                           doc_terms::Dict{ASCIIString, Set{ASCIIString}},
                            term_counts::Accumulator{ASCIIString, Int})
     scope.search_terms = Set{ASCIIString}()
-    scope.term_words    = copy(term_words)
+    scope.doc_terms    = copy(doc_terms)
     scope.term_counts  = Accumulator{ASCIIString, Int}(copy(term_counts.map))
     scope.facets       = Dict{ASCIIString, Any}()
     scope.abstracts    = abstracts
@@ -44,8 +44,8 @@ function refine_scope!(scope::SearchScope,
     query = options["q"]
 
     push!(scope.search_terms, query)
-    filter!((doc_id, terms) -> query in terms, scope.term_words)
-    scope.term_counts = count_terms(scope.term_words)
+    filter!((doc_id, terms) -> query in terms, scope.doc_terms)
+    scope.term_counts = count_terms(scope.doc_terms)
     
     abstracts, count = get_abstracts(scope, options)
 
@@ -76,8 +76,8 @@ function generalize_scope!(scope::SearchScope,
         reset = true
     else
         for (doc_id, terms) in term_words
-            if !haskey(scope.term_words, doc_id) && doc_in_scope(scope, doc_id, terms)
-                scope.term_words[doc_id] = terms
+            if !haskey(scope.doc_terms, doc_id) && doc_in_scope(scope, doc_id, terms)
+                scope.doc_terms[doc_id] = terms
                 for term in terms
                     push!(scope.term_counts, term)
                 end
@@ -115,8 +115,8 @@ function remove_journal_facet!(scope::SearchScope,
         pop!(scope.facets, "journal")
  
         for (doc_id, terms) in term_words
-            if !haskey(scope.term_words, doc_id) && doc_in_scope(scope, doc_id, terms)
-                scope.term_words[doc_id] = terms
+            if !haskey(scope.doc_terms, doc_id) && doc_in_scope(scope, doc_id, terms)
+                scope.doc_terms[doc_id] = terms
                 for term in terms
                     add!(scope.term_counts, term)
                 end
@@ -127,8 +127,8 @@ end
 
 function set_journal_facet!(scope::SearchScope, query::ASCIIString)
     scope.facets["journal"] = query
-    filter!((doc_id, terms) -> uppercase(scope.metadata[doc_id]["journal"]) == query, scope.term_words)
-    scope.term_counts = count_terms(scope.term_words)
+    filter!((doc_id, terms) -> uppercase(scope.metadata[doc_id]["journal"]) == query, scope.doc_terms)
+    scope.term_counts = count_terms(scope.doc_terms)
 end
 
 function doc_in_scope(scope::SearchScope, doc_id::ASCIIString, terms::Set{ASCIIString})
@@ -146,11 +146,10 @@ function get_abstracts(scope::SearchScope,
 
     const term_locations, title_term_locations = load_term_locations("../output/thin_film_sentences.txt")
     const term_words = load_terms("../output/thin_film_sentences.txt")
-
     limit = int(get(options, "limit", 20))
     start = int(get(options, "start", 1))
 
-    doc_ids = collect(keys(scope.term_words))   
+    doc_ids = collect(keys(scope.metadata))   
     sort!(doc_ids, rev=true)
     
     result = IOBuffer()
@@ -163,33 +162,37 @@ function get_abstracts(scope::SearchScope,
     write(result, '[')
     delim = ""
     for doc_id in doc_ids[min(start, length(doc_ids)):min(start+limit-1, length(doc_ids))]
-        doc_metadata = scope.metadata[doc_id]
-        title        = doc_metadata["title"]
-        authors      = doc_metadata["authors"]
-        journal      = doc_metadata["journal"]
-        volume       = doc_metadata["volume"]
-        pub_year     = doc_metadata["pub_year"]
-        start_page   = doc_metadata["start_page"]
-        end_page     = doc_metadata["end_page"]
-        text         = into_sentences(highlight_terms(scope, doc_id, term_locations))
-        write(result, delim)
-        write(result, '"')
-        write_and_escape(result, "<tr><td id=\"$doc_id\">")
-        write_and_escape(result, "<a class=\"article-title\"")
-        write_and_escape(result,    "href=\"https://www.google.com/scholar?q=$title\"")
-        write_and_escape(result,    "target=\"_blank\">")
-        write_and_escape(result, title)
-        write(result, "</a>")
-        write_and_escape(result, "<h5>$authors</h5>")
-        write(result, "<h5>")
-        write_and_escape(result, "$journal $volume ")
-        write_and_escape(result, "$(pub_year): ")
-        write_and_escape(result, "$start_page-$end_page")
-        write(result, "</h5>")
-        write_and_escape(result, "<p>$text</p>")
-        write(result, "</td></tr>")
-        write(result, '\"')
-        delim = ","
+  #      try
+            doc_metadata = scope.metadata[doc_id]
+            title        = highlight_terms(string(doc_metadata["title"]), title_term_locations[doc_id])
+            authors      = doc_metadata["authors"]
+            journal      = doc_metadata["journal"]
+            volume       = doc_metadata["volume"]
+            pub_year     = doc_metadata["pub_year"]
+            start_page   = doc_metadata["start_page"]
+            end_page     = doc_metadata["end_page"]
+            text         = into_sentences(highlight_terms(string(scope.abstracts[doc_id]), term_locations[doc_id]))
+            write(result, delim)
+            write(result, '"')
+            write_and_escape(result, "<tr><td id=\"$doc_id\">")
+            write_and_escape(result, "<a class=\"article-title\"")
+            write_and_escape(result,    "href=\"https://www.google.com/scholar?q=$(doc_metadata["title"])\"")
+            write_and_escape(result,    "target=\"_blank\">")
+            write_and_escape(result, title)
+            write(result, "</a>")
+            write_and_escape(result, "<h5>$authors</h5>")
+            write(result, "<h5>")
+            write_and_escape(result, "$journal $volume ")
+            write_and_escape(result, "$(pub_year): ")
+            write_and_escape(result, "$start_page-$end_page")
+            write(result, "</h5>")
+            write_and_escape(result, "<p>$text</p>")
+            write(result, "</td></tr>")
+            write(result, '\"')
+            delim = ","
+ #       catch
+#            print(string(doc_id, " not found\n"))
+ #       end
     end
     write(result, ']')
 
@@ -203,15 +206,14 @@ function get_abstracts(scope::SearchScope,
     end
 end
 
-function highlight_terms(scope::SearchScope, doc_id::String, locs_dict::Dict{ASCIIString, Set{ASCIIString}})
-    paragraph = split(string(scope.abstracts[doc_id]))
-    locs = locs_dict[doc_id]
+function highlight_terms(text::String, locs::Set{ASCIIString})
+    words = split(text)
     for loc in locs
         indices = range(loc)
-        paragraph[indices[1]] = string("<span rel=\"popover\" class=\"term\" data-toggle=\"popover\">", paragraph[indices[1]])
-        paragraph[indices[2]] = string(paragraph[indices[2]], "</span>")
+        words[indices[1]] = string("<span rel=\"popover\" class=\"term\" data-toggle=\"popover\">", words[indices[1]])
+        words[indices[2]] = string(words[indices[2]], "</span>")
     end
-    return join(paragraph, " ")
+    return join(words, " ")
 end
 
 function range(s::String)
@@ -232,11 +234,12 @@ function delim(s::String)
 end
 
 function write_and_escape(buf::IOBuffer, str::String)
-    write(buf, replace(str, r"[\"\\]", s -> "\\" * s))
+    replaced = replace(str, r"[\"\\]", s -> "\\" * s)
+    write(buf, replaced)
 end
 
 function get_facets(scope::SearchScope)
-    doc_ids = [keys(scope.term_words)...]
+    doc_ids = [keys(scope.doc_terms)...]
 
     journal_counts = counter(ASCIIString)
     for doc_id in doc_ids
