@@ -4,26 +4,27 @@ var term_popover_template = '<div class="popover" role="tooltip"><div class="arr
 var term_popover_title = "<button type='button' class='close'>&times;</button>" +
 "<span class='popover-title-text'>Label this term</span>";
 
-var term_popover_text = "<select class='label-options form-control'>"+
-"<option>1</option>"+
-"<option>2</option>"+
-"<option>3</option>"+
-"<option>4</option>"+
-"<option>5</option>"+
-"</select>"+
-"<button type='button' class='reject-btn btn btn-danger'>Not a term?</button>"
-
 var selected_popover_title = "<button type='button' class='close'>&times;</button>"+
 "<span class='popover-title-text'>Should this be a term?</span>";
 
-var selected_popover_text = "<select class='label-options form-control'>"+
-"<option>1</option>"+
-"<option>2</option>"+
-"<option>3</option>"+
-"<option>4</option>"+
-"<option>5</option>"+
-"</select>"+
-"<button type='button' class='approve-btn btn btn-success'>Yes</button>";
+var term_popover_text = "<select class='label-options form-control'>";
+var selected_popover_text = "<select class='label-options form-control'>";
+var first_labels = ["AggregationState", "ChemicalComponent", "ConcentrationMeasure",
+                    "Material", "MaterialRole", "PhaseComponent", "PhaseSystem", 
+                    "Algorithm", "AlgorithmStep", "Assumption", "Expression", "Model",
+                    "ModelImages", "Parameters", "Substitutions", "CoordinateSystem", 
+                    "DimensionAxis", "Object", "Shape", "Equipment", "EquipmentParts",
+                    "EquipmentSpecs", "EquipmentType", "OperatingParameters", "ProcessClass", 
+                    "ProcessStep", "Processes", "Properties", "PropertyClass", "PropertyInstance", 
+                    "RateConstant", "Reaction", "ReactionClass", "ReactionSet", "Address", 
+                    "Affiliation", "Concepts", "Name","Person", "Sources", "Cyclic", "Substance", 
+                    "SubstanceClass", "Dimension", "Value"];
+for(var i = 0; i < first_labels.length; i++) {
+    term_popover_text= term_popover_text + "<option>" + first_labels[i] + "</option>";
+    selected_popover_text = selected_popover_text + "<option>" + first_labels[i] + "</option>";
+}
+term_popover_text+="</select> <button type='button' class='reject-btn btn btn-danger'>Yes</button>";
+selected_popover_text+="</select> <button type='button' class='approve-btn btn btn-success'>Yes</button>";
 
 var sentence_popover_template = "<div class='popover' role='tooltip'><div class='arrow'></div>" +
 "<button type='button' class='btn submit btn-default'>Submit</div>"
@@ -94,13 +95,19 @@ $(".sentence").on("click", ".approve-btn", function() {
 $("body").on("change", ".label-options", function(e){
     if (e.target === this) {
         $(this).nextAll(".label-options").remove();
-        $(this).after("<select class='label-options form-control'>"+
-            "<option>" + $(this).find("option:selected").last().text() + "</option>"+
-            "<option>2</option>"+
-            "<option>3</option>"+
-            "<option>4</option>"+
-            "<option>5</option>"+
-            "</select>");
+        var select = $(this);
+        $.get("/labels", {parent: $(this).find("option:selected").text()}, function(response) {
+            var children = $.parseJSON(response);
+            if (children.length > 0) {
+                var next_label = "<select class='label-options form-control'>";
+                for (var i = 0; i < children.length; i++) {
+                    next_label = next_label + "<option>" + children[i] + "</option>";
+                }
+                next_label = next_label + "</select>";
+                console.log(next_label);
+                select.after(next_label);
+            }
+        });
     }
 });
 

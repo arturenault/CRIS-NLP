@@ -155,3 +155,7 @@ html {overflow-y: scroll;}
 .sentence:hover {
   background-color: #EEF7FF;
 }
+
+.approve-btn, .reject-btn {
+  margin-top: 10px;
+}

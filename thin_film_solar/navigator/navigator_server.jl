@@ -2,16 +2,18 @@ append!(LOAD_PATH, ["../../common/navigator", "../../common/util"])
 
 require("HttpCommon.jl")
 require("Morsel.jl")
-
+require("labels.jl")
 require("autocomplete.jl")
 require("search.jl")
 require("serialization.jl")
 require("server_utils.jl")
 
+using JSON
 using NavigatorAutocomplete
 using NavigatorSearch
 using NavigatorServerUtils
 using Serialization
+using NavigatorLabels
 
 const abstracts   = load_string_to_string_map("../data/thin_film_abstracts.txt", UTF8String)
 const metadata    = load_article_metadata("../data/thin_film_metadata.txt")
@@ -20,6 +22,8 @@ const term_counts = count_terms(doc_terms)
 
 scope = SearchScope()
 initialize_scope!(scope, abstracts, metadata, doc_terms, term_counts)
+
+ontology = make_ontology("../../thin_film_solar/data/owlJSONwithNames.txt")
 
 app = Morsel.app()
 
@@ -56,6 +60,10 @@ end
 
 Morsel.get(app, "/facets") do request, response
     get_facets(scope)
+end
+
+Morsel.get(app, "/labels") do request, response
+    JSON.json(ontology[get_options(request)["parent"]])
 end
 
 Morsel.put(app, "/scope/set-facet/journal") do request, response
