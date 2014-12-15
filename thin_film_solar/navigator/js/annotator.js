@@ -19,6 +19,8 @@ var first_labels = ["AggregationState", "ChemicalComponent", "ConcentrationMeasu
                     "RateConstant", "Reaction", "ReactionClass", "ReactionSet", "Address", 
                     "Affiliation", "Concepts", "Name","Person", "Sources", "Cyclic", "Substance", 
                     "SubstanceClass", "Dimension", "Value"];
+
+
 for(var i = 0; i < first_labels.length; i++) {
     term_popover_text= term_popover_text + "<option>" + first_labels[i] + "</option>";
     selected_popover_text = selected_popover_text + "<option>" + first_labels[i] + "</option>";
@@ -104,7 +106,6 @@ $("body").on("change", ".label-options", function(e){
                     next_label = next_label + "<option>" + children[i] + "</option>";
                 }
                 next_label = next_label + "</select>";
-                console.log(next_label);
                 select.after(next_label);
             }
         });
@@ -135,7 +136,7 @@ $(".sentence").not(".term, .selected").click(function(e) {
 $("body").on("click", ".submit", function(e) {
     var sentence = $(this).parent().parent();
     $(".popover").remove();
-    var json = sentence.into_json();
+    var json = into_json(sentence);
     $.post("submit", json, function(response) {
         console.log(response);
     });
@@ -188,7 +189,7 @@ function replace_all(find, replace, str) {
     return str.replace(new RegExp(escape_regexp(find), 'g'), replace);
 }
 
-jQuery.fn.justtext = function() {
+$.fn.justtext = function() {
     return $(this).clone()
     .children()
     .remove()
@@ -196,16 +197,16 @@ jQuery.fn.justtext = function() {
     .text();
 };
 
-jQuery.fn.into_json = function() {
-    var text = $(this).text().substring(0, $(this).text().length-7);
+$.fn.into_json = function() {
+    var text = sentence.text().substring(0, sentence.text().length-7);
     var textArray = text.split(" ");
-    var id = $(this).parent().parent().attr("id");
-    var index = $(this).index();
+    var id = sentence.parent().parent().attr("id");
+    var index = sentence.index();
 
     var output = "{ \"sentence\": \"" + text +
     "\", \"doc_id\": \"" + id + "\", \"index\": " +
     index + ", \"terms\": [";
-    $(this).children("span").each(function() {
+    sentence.children("span").each(function() {
         var term = $(this).justtext();
         var index = textArray.indexOf(term.split(" ")[0]);
         var length = term.split(" ").length;
@@ -219,5 +220,6 @@ jQuery.fn.into_json = function() {
     });
 
     output += "]}";
+    console.log(output);
     return output;
 }
